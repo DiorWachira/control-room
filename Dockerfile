@@ -3,10 +3,10 @@
 #   docker run -p 8000:8000 controlroom                      # replay mode
 #   docker run -p 8000:8000 -e PROMETHEUS_URL=... controlroom  # live mode
 
-FROM node:22.11-slim AS web
+FROM node:22.20.0-slim AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
