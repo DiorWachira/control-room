@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Control Room · Budget console wall</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:ital,wght@0,400;0,500;0,600;1,400&amp;family=Share+Tech+Mono&amp;display=swap">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.cr{--wall:#E6DDC8;--wall-2:#DDD2B9;--rule:#B3A686;--console:#AAB08F;--console-hi:#C5C8AC;--console-deep:#7C8462;--kick:#565D41;--ink:#1D2115;--ink-2:#363C29;--board:#1B1F18;--board-2:#2A3024;--board-ink:#ECE5CF;--board-mute:#B4B19A;--board-rule:#3A4032;--tick:#7E866B;--glass:#363A2E;--glass-ink:#BDBBA4;--lamp-white:#F1E8CA;--lamp-amber:#E59C2F;--lamp-red:#A9412F;--lamp-red-ink:#FBF1E8;--lamp-ink:#1D1A10;--focus:#1D2115;
+background:var(--wall);color:var(--ink);font-family:'Barlow',system-ui,sans-serif;font-size:16px;line-height:1.5;min-height:100vh;overflow-x:hidden}
+.cr[data-lights="down"]{--wall:#11130D;--wall-2:#181B12;--rule:#3A3F2D;--console:#2A2F21;--console-hi:#363C2A;--console-deep:#1F2318;--kick:#0B0D08;--ink:#E6E0CA;--ink-2:#B3B199;--board:#080A06;--board-2:#15180F;--board-rule:#2B3024;--tick:#6C745A;--glass:#22261B;--glass-ink:#A9A790;--focus:#ECE5CF}
+.cr *{box-sizing:border-box}
+.cr :focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.on-board :focus-visible{outline-color:var(--board-ink)}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,40px)}
+.cond{font-family:'Barlow Condensed',sans-serif}
+.mono{font-family:'Share Tech Mono',ui-monospace,monospace}
+.label{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.overhead{background:var(--board);color:var(--board-ink);border-bottom:6px solid var(--board-2)}
+.overhead-in{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;min-height:64px;padding-block:10px}
+.mark{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none}
+.mark-lamps{display:grid;grid-template-columns:repeat(3,8px);gap:3px}
+.mark-lamps span{width:8px;height:8px;background:var(--glass);border:1px solid var(--board-mute)}
+.mark-lamps span.on{background:var(--lamp-amber);border-color:var(--lamp-amber)}
+.nav{display:flex;flex-wrap:wrap;gap:4px}
+.nav a{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:10px 12px;min-height:44px;display:inline-flex;align-items:center;border-bottom:3px solid transparent;color:var(--board-mute)}
+.nav a:hover{color:var(--board-ink)}
+.nav a[aria-current="page"]{color:var(--board-ink);border-bottom-color:var(--board-ink)}
+.clocks{display:flex;gap:18px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.clock{display:flex;flex-direction:column;line-height:1.1}
+.clock .label{font-size:11px;color:var(--board-mute)}
+.clock .mono{font-size:20px}
+.lightsw{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px 6px 8px;background:var(--board-2);color:var(--board-ink);border:1px solid var(--board-rule);border-radius:2px;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.knob{width:28px;height:28px;border-radius:50%;background:var(--board-mute);border:3px solid var(--board-rule);position:relative;transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.knob::after{content:"";position:absolute;left:50%;top:2px;width:3px;height:9px;margin-left:-1.5px;background:var(--board)}
+.lightsw[aria-pressed="true"] .knob{transform:rotate(-135deg)}
+.lamp{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:6px 10px;background:var(--glass);color:var(--glass-ink);border:2px solid #0E100B;border-radius:2px;box-shadow:inset 0 0 0 3px rgba(0,0,0,.22);font:600 13px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;transition:background .2s,color .2s}
+.lamp small{display:block;font:400 11px/1.2 'Share Tech Mono',monospace;letter-spacing:0;text-transform:none;margin-top:3px}
+.lamp.is-white{background:var(--lamp-white);color:var(--lamp-ink)}
+.lamp.is-amber{background:var(--lamp-amber);color:var(--lamp-ink)}
+.lamp.is-red{background:var(--lamp-red);color:var(--lamp-red-ink)}
+.lamp.is-flash{animation:flash 1s steps(1,end) infinite}
+@keyframes flash{0%{background:var(--lamp-amber);color:var(--lamp-ink)}50%{background:var(--glass);color:var(--glass-ink)}}
+.board{background:var(--board);color:var(--board-ink);border:10px solid var(--board-2);border-radius:2px;background-image:linear-gradient(var(--board-rule) 1px,transparent 1px),linear-gradient(90deg,var(--board-rule) 1px,transparent 1px);background-size:100% 48px,48px 100%}
+.board-in{padding:clamp(18px,3vw,36px)}
+.board-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 32px;align-items:start}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.mc{width:96px;min-height:72px;border:3px solid #0E100B;border-radius:2px;background:var(--glass);color:var(--glass-ink);font:700 15px/1.05 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;box-shadow:inset 0 0 0 4px rgba(0,0,0,.25),0 5px 0 #0E100B;transition:transform .08s,box-shadow .08s}
+.mc:active{transform:translateY(4px);box-shadow:inset 0 0 0 4px rgba(0,0,0,.25),0 1px 0 #0E100B}
+.mc.is-lit{background:var(--lamp-amber);color:var(--lamp-ink);animation:flash 1s steps(1,end) infinite}
+.bkey{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:88px;padding:8px 14px;background:var(--board-2);color:var(--board-ink);border:2px solid var(--board-rule);border-bottom-width:6px;border-radius:2px;font:600 14px 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform .08s,border-bottom-width .08s}
+.bkey:active{transform:translateY(4px);border-bottom-width:2px}
+.bkey[aria-pressed="true"]{background:var(--board-ink);color:var(--board)}
+.chart-wrap{position:relative;margin-top:22px}
+.chart{display:block;width:100%;height:auto;overflow:visible}
+.readout{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:10px;font-size:14px;color:var(--board-mute);min-height:24px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;color:var(--board-mute);font-size:13px;align-items:center;margin-top:8px}
+.strip-slot{position:relative;overflow:hidden;margin:28px 0 0;min-height:96px}
+.quiet{display:flex;align-items:center;gap:14px;min-height:96px;padding:0 20px;border:2px dashed var(--rule);color:var(--ink-2)}
+.strip{background:var(--board);color:var(--board-ink);border-left:12px solid var(--lamp-amber);padding:18px 22px;display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:16px 28px;animation:slidein .7s cubic-bezier(.2,.85,.25,1) both}
+@keyframes slidein{from{transform:translateX(calc(100% + 40px))}to{transform:translateX(0)}}
+.tl{list-style:none;margin:0;padding:0;display:flex;gap:0;overflow-x:auto;scrollbar-width:thin;padding-bottom:6px}
+.tl li{flex:0 0 172px;position:relative;padding:22px 14px 0 0;border-top:2px solid var(--board-mute);animation:drop .45s ease-out both}
+.tl li::before{content:"";position:absolute;top:-8px;left:0;width:14px;height:14px;background:var(--board-ink);border:2px solid var(--board)}
+.tl li.is-key::before{background:var(--lamp-amber)}
+@keyframes drop{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.wall{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;align-items:stretch;margin-top:30px}
+.console{background:var(--console);border-top:12px solid var(--console-deep);border-radius:2px 2px 0 0;box-shadow:0 8px 0 var(--kick);display:flex;flex-direction:column;min-width:0}
+.console-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 18px;border-bottom:2px solid var(--console-deep)}
+.plate{display:inline-block;background:var(--board);color:var(--board-ink);padding:4px 10px;font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase;border-radius:1px}
+.riser{background:var(--console-deep);padding:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-bottom:4px solid var(--kick)}
+.riser .lamp{min-height:58px;padding:6px 4px;font-size:12px}
+.desk{padding:18px;display:grid;grid-template-columns:96px minmax(0,1fr);gap:18px}
+.gauge{display:flex;gap:6px;align-items:stretch}
+.tank{position:relative;width:52px;height:280px;background:var(--glass);border:3px solid #0E100B;border-radius:2px;overflow:hidden;box-shadow:inset 0 0 0 3px rgba(0,0,0,.25)}
+.fill{position:absolute;left:0;right:0;bottom:0;background:var(--lamp-white);transition:height .25s linear,background .3s}
+.fill.is-amber{background:var(--lamp-amber)}
+.fill.is-red{background:var(--lamp-red)}
+.flow{position:absolute;left:50%;width:6px;margin-left:-3px;top:0;bottom:0;background-image:linear-gradient(var(--lamp-ink) 50%,transparent 50%);background-size:6px 14px;opacity:.55;animation:flow linear infinite}
+@keyframes flow{from{background-position:0 0}to{background-position:0 28px}}
+.floor{position:absolute;left:-3px;right:-3px;border-top:3px dashed var(--board-ink);mix-blend-mode:normal}
+.gscale{position:relative;width:34px;height:280px;font:400 11px 'Share Tech Mono',monospace;color:var(--ink-2)}
+.gscale span{position:absolute;left:0;transform:translateY(50%);padding-left:7px;border-left:0}
+.gscale span::before{content:"";position:absolute;left:0;top:50%;width:5px;border-top:1px solid var(--ink-2)}
+.needle{position:absolute;left:-14px;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid var(--ink);transform:translateY(50%);transition:bottom .25s linear}
+.readings{display:flex;flex-direction:column;gap:12px;min-width:0}
+.odo{font:400 44px/1 'Share Tech Mono',monospace;letter-spacing:-.02em}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px;margin:0}
+.kv dd{margin:0;font-family:'Share Tech Mono',monospace;font-size:15px;text-align:right}
+.meter{display:grid;grid-template-columns:30px minmax(0,1fr) 56px;gap:8px;align-items:center;font-size:13px}
+.track{position:relative;height:16px;background:var(--glass);border:2px solid #0E100B;border-radius:1px}
+.bar{position:absolute;left:0;top:0;bottom:0;background:var(--lamp-white);transition:width .25s linear}
+.bar.is-amber{background:var(--lamp-amber)}
+.thr{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink)}
+.mscale{position:relative;height:14px;margin-left:38px;margin-right:64px;font:400 10px 'Share Tech Mono',monospace;color:var(--ink-2)}
+.mscale span{position:absolute;transform:translateX(-50%)}
+.gate{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 18px;margin-top:auto;border-top:2px solid var(--console-deep);background:var(--console-hi)}
+.cover{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 12px;background:var(--lamp-red);color:var(--lamp-red-ink);border:2px solid #0E100B;border-radius:2px;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transform-origin:top center;transition:transform .3s}
+.cover[aria-expanded="true"]{transform:perspective(300px) rotateX(-28deg);background:#5E2A20}
+.toggle{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px;background:var(--wall);color:var(--ink);border:2px solid var(--kick);border-radius:2px;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.toggle:disabled{opacity:.55;cursor:not-allowed}
+.bat{width:10px;height:26px;background:var(--ink);border-radius:5px;transform:rotate(-24deg);transition:transform .2s}
+.toggle[aria-pressed="true"] .bat{transform:rotate(24deg)}
+@media (max-width:1180px){.wall{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:860px){.wall{grid-template-columns:minmax(0,1fr)}.board-top{grid-template-columns:minmax(0,1fr)}.strip{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.clocks{margin-left:0}.hero-h{font-size:40px!important}.riser{grid-template-columns:repeat(2,minmax(0,1fr))}.desk{grid-template-columns:minmax(0,1fr)}.gauge{justify-content:flex-start}.tank,.gscale{height:200px}.odo{font-size:38px}}
+@media (prefers-reduced-motion:reduce){.cr *,.cr *::before,.cr *::after{animation:none!important;transition:none!important}.flow{display:none}}
+</style>
+</helmet>
+<div class="cr" data-lights="{{lights}}">
+
+<header class="overhead on-board">
+<div class="wrap overhead-in">
+<a class="mark" href="Main.dc.html"><span class="mark-lamps" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></span>Control Room</a>
+<nav class="nav" aria-label="Control Room screens">
+<a href="Main.dc.html">Status</a>
+<a href="Budget.dc.html" aria-current="page">Budgets</a>
+<a href="Incident.dc.html">RSV-1042</a>
+</nav>
+<div class="clocks">
+<div class="clock"><span class="label">Replay · EAT</span><span class="mono">{{simClock}}</span></div>
+<div class="clock"><span class="label">Speed</span><span class="mono">1 s = 3 min</span></div>
+<button class="lightsw" type="button" aria-pressed="{{downStr}}" onClick="{{toggleLights}}"><span class="knob" aria-hidden="true"></span>House lights {{lightsWord}}</button>
+</div>
+</div>
+</header>
+
+<main class="wrap" style="padding-top: 32px; padding-bottom: 72px">
+<section class="board on-board" aria-labelledby="bb-h">
+<div class="board-in">
+<div class="board-top">
+<div>
+<p class="label" style="margin: 0; color: var(--board-mute)">Big board · error budget remaining · 28-day rolling window</p>
+<h1 id="bb-h" class="cond hero-h" style="margin: 10px 0 0; font-weight: 600; font-size: 60px; line-height: .95; text-transform: uppercase">{{headline}}</h1>
+<p style="margin: 10px 0 0; max-width: 60ch; color: var(--board-mute)">Replaying Sunday 8 November, 09:30 to 11:00 EAT. Watch RepoLens’s budget drain when its examiner model fails, the page fire only once both windows agree, and the short window reset the alert as soon as the fix lands.</p>
+</div>
+<div class="controls">
+<button class="mc {{mcCls}}" type="button" onClick="{{ackCaution}}" aria-label="{{mcLabel}}">Master<br>caution</button>
+<button class="bkey" type="button" aria-pressed="{{heldStr}}" onClick="{{toggleHold}}">{{holdWord}}</button>
+<button class="bkey" type="button" onClick="{{replay}}">Replay</button>
+<button class="bkey" type="button" onClick="{{lampTest}}">Lamp test</button>
+</div>
+</div>
+
+<div class="chart-wrap">
+<svg class="chart" viewBox="0 0 1000 300" role="img" aria-label="{{chartLabel}}">
+<line x1="0" y1="0" x2="1000" y2="0" stroke="var(--board-rule)" stroke-width="1"></line>
+<line x1="0" y1="150" x2="1000" y2="150" stroke="var(--board-rule)" stroke-width="1"></line>
+<line x1="0" y1="300" x2="1000" y2="300" stroke="var(--board-mute)" stroke-width="1.5"></line>
+<line x1="0" y1="0" x2="900" y2="300" stroke="var(--board-mute)" stroke-width="1.5" stroke-dasharray="2 6"></line>
+<text x="420" y="148" fill="var(--board-mute)" font-family="Share Tech Mono" font-size="13" transform="rotate(18 420 148)">1× steady burn</text>
+<sc-if value="{{hoverOn}}" hint-placeholder-val="{{ false }}">
+<line x1="{{hoverX}}" y1="0" x2="{{hoverX}}" y2="300" stroke="var(--board-ink)" stroke-width="1"></line>
+</sc-if>
+<sc-for list="{{series}}" as="s" hint-placeholder-count="3">
+<polyline points="{{s.points}}" fill="none" stroke="{{s.stroke}}" stroke-width="{{s.width}}" stroke-dasharray="{{s.dash}}" stroke-linejoin="round" stroke-linecap="round"></polyline>
+<circle cx="{{s.endX}}" cy="{{s.endY}}" r="6" fill="{{s.stroke}}" stroke="var(--board)" stroke-width="2"></circle>
+<text x="912" y="{{s.labelY}}" fill="var(--board-ink)" font-family="Barlow Condensed" font-weight="600" font-size="15" letter-spacing="1">{{s.label}}</text>
+</sc-for>
+<sc-for list="{{days}}" as="d" hint-placeholder-count="29">
+<rect x="{{d.x}}" y="0" width="32" height="300" fill="transparent" onMouseEnter="{{d.hover}}"></rect>
+</sc-for>
+</svg>
+<div class="mono" style="display: flex; justify-content: space-between; color: var(--board-mute); font-size: 12px; margin-right: 10%"><span>11 Oct</span><span>25 Oct</span><span>8 Nov</span></div>
+<div class="readout mono">{{readout}}</div>
+<div class="legend">
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-ink)" stroke-width="2"></line></svg> Resolve</span>
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-ink)" stroke-width="4"></line></svg> RepoLens (amber while burning)</span>
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-mute)" stroke-width="2" stroke-dasharray="7 4"></line></svg> JobBridge</span>
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-mute)" stroke-width="1.5" stroke-dasharray="2 6"></line></svg> Burning exactly on budget</span>
+</div>
+</div>
+</div>
+</section>
+
+<section class="strip-slot" aria-label="Incident loop">
+<p class="sr" aria-live="polite">{{announce}}</p>
+<sc-if value="{{fired}}" hint-placeholder-val="{{ false }}">
+<div class="strip on-board">
+<div>
+<p class="label" style="margin: 0; color: var(--board-mute)">Incident loop · {{incState}}</p>
+<p class="cond" style="margin: 6px 0 2px; font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: .03em">RSV-1042</p>
+<p style="margin: 0 0 12px">RepoLens scans failing · page tier, fast burn</p>
+<a class="bkey" href="Incident.dc.html" style="text-decoration: none">Open incident →</a>
+</div>
+<ol class="tl" aria-label="Incident timeline so far">
+<sc-for list="{{events}}" as="e" hint-placeholder-count="4">
+<li class="{{e.cls}}"><span class="mono" style="font-size: 15px">{{e.time}}</span><span class="label" style="display: block; color: var(--board-mute); font-size: 11px">{{e.src}}</span><span style="display: block; font-size: 14px; line-height: 1.35">{{e.text}}</span></li>
+</sc-for>
+</ol>
+</div>
+</sc-if>
+<sc-if value="{{quiet}}" hint-placeholder-val="{{ true }}">
+<div class="quiet"><span class="lamp" style="min-height: 36px">Loop quiet</span><span>No open page-tier incidents. One ticket-tier alert is open for JobBridge (RSV-1039).</span></div>
+</sc-if>
+</section>
+
+<section class="wall" aria-label="Service consoles">
+<sc-for list="{{consoles}}" as="c" hint-placeholder-count="3">
+<article class="console" aria-labelledby="{{c.hid}}">
+<div class="console-head">
+<div style="display: flex; align-items: center; gap: 10px; min-width: 0"><span class="plate">{{c.call}}</span><h2 id="{{c.hid}}" class="cond" style="margin: 0; font-size: 26px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em">{{c.name}}</h2></div>
+<span class="lamp {{c.stateCls}}" style="min-height: 34px; padding: 4px 10px">{{c.stateText}}</span>
+</div>
+<div class="riser" role="list" aria-label="{{c.name}} annunciator panel">
+<sc-for list="{{c.lamps}}" as="l" hint-placeholder-count="6">
+<span class="lamp {{l.cls}}" role="listitem" aria-label="{{l.aria}}">{{l.name}}<small>{{l.sub}}</small></span>
+</sc-for>
+</div>
+<div class="desk">
+<div class="gauge" role="meter" aria-label="{{c.name}} error budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{c.pctNum}}" aria-valuetext="{{c.pctText}}">
+<div class="tank">
+<div class="fill {{c.fillCls}}" style="height: {{c.pctNum}}%"></div>
+<sc-if value="{{c.flowing}}" hint-placeholder-val="{{ false }}"><div class="flow" style="animation-duration: {{c.flowDur}}s; height: {{c.pctNum}}%; top: auto; bottom: 0"></div></sc-if>
+<div class="floor" style="bottom: {{c.floor}}%" title="Deploy gate floor"></div>
+</div>
+<div class="gscale" aria-hidden="true">
+<span style="bottom: 100%">100</span><span style="bottom: 75%">75</span><span style="bottom: 50%">50</span><span style="bottom: 25%">25</span><span style="bottom: 0%">0</span>
+<div class="needle" style="bottom: {{c.pctNum}}%"></div>
+</div>
+</div>
+<div class="readings">
+<div><p class="label" style="margin: 0; color: var(--ink-2)">Budget left · {{c.slo}}</p><p class="odo" style="margin: 2px 0 0">{{c.pctText}}</p><p class="mono" style="margin: 2px 0 0; font-size: 13px; color: var(--ink-2)">{{c.drain}}</p></div>
+<div>
+<div class="meter"><span class="label">1H</span><span class="track"><span class="bar {{c.b1Cls}}" style="width: {{c.b1Pos}}%"></span><span class="thr" style="left: 77.9%"></span></span><span class="mono" style="text-align: right">{{c.b1}}</span></div>
+<div class="meter" style="margin-top: 6px"><span class="label">5M</span><span class="track"><span class="bar {{c.b5Cls}}" style="width: {{c.b5Pos}}%"></span><span class="thr" style="left: 77.9%"></span></span><span class="mono" style="text-align: right">{{c.b5}}</span></div>
+<div class="mscale" aria-hidden="true"><span style="left: 0%">0.1</span><span style="left: 33.3%">1</span><span style="left: 77.9%">14.4</span><span style="left: 100%">100×</span></div>
+</div>
+<dl class="kv">
+<dt>Runs out in</dt><dd>{{c.tte}}</dd>
+<sc-for list="{{c.extra}}" as="x" hint-placeholder-count="2"><dt>{{x.k}}</dt><dd>{{x.v}}</dd></sc-for>
+</dl>
+</div>
+</div>
+<div class="gate">
+<span class="label" style="flex: 1 1 100%">Deploy gate · floor {{c.floor}}%</span>
+<span class="lamp {{c.gateCls}}" style="min-height: 40px">{{c.gateText}}</span>
+<sc-if value="{{c.gateGuard}}" hint-placeholder-val="{{ false }}">
+<button class="cover" type="button" aria-expanded="{{coverStr}}" aria-controls="ovr" onClick="{{toggleCover}}">{{coverWord}}</button>
+<button id="ovr" class="toggle" type="button" aria-pressed="{{ovrStr}}" disabled="{{ovrDisabled}}" onClick="{{toggleOverride}}"><span class="bat" aria-hidden="true"></span>Emergency-fix</button>
+</sc-if>
+</div>
+</article>
+</sc-for>
+</section>
+
+<p class="mono" style="margin: 36px 0 0; font-size: 13px; color: var(--ink-2)">Tiers from the SRE Workbook: page at 14.4× (1 h and 5 min), page at 6× (6 h and 30 min), ticket at 1× (3 d and 6 h). Both windows must exceed the threshold. Burn rate = error ratio ÷ (1 − objective).</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"lights":{"editor":"enum","options":["auto","up","down"],"default":"auto"},"$preview":{"width":1440,"height":2240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = { sysDark: dark, override: null, t: 570, held: false, acked: ['jobbridge:ticket'], test: false, cover: false, ovr: false, hoverDay: null, firedAt: null };
+  }
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () {
+      if (self.state.held || self.state.t >= 660) return;
+      self.setState({ t: Math.min(660, self.state.t + 0.75) });
+    }, 250);
+  }
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.testTimer); }
+  pad(n) { return (n < 10 ? '0' : '') + n; }
+  clock(t) { var m = Math.floor(t); return this.pad(Math.floor(m / 60)) + ':' + this.pad(m % 60); }
+  model() {
+    return {
+      resolve: { name: 'Resolve', call: 'DESK', slo: 0.999, sloText: '99.9% avail.', start: 82.6, floor: 25, r: function () { return 0.00013; } },
+      repolens: { name: 'RepoLens', call: 'SCAN', slo: 0.995, sloText: '99.5% scans', start: 47.9, floor: 45, r: function (t) { if (t >= 581 && t < 611) return 0.40; if (t >= 611 && t < 624) return 0.02; return 0.0025; } },
+      jobbridge: { name: 'JobBridge', call: 'MATCH', slo: 0.95, sloText: '95% reasons ≤2.5 s', start: 50.4, floor: 25, r: function (t) { return t >= -3750 ? 0.065 : 0.02; } }
+    };
+  }
+  avg(fn, t, w) {
+    var step = w <= 360 ? 1 : 5, s = 0, n = 0;
+    for (var x = t - w; x < t; x += step) { s += fn(Math.floor(x)); n++; }
+    return s / n;
+  }
+  fmtBurn(b) { return (b >= 10 ? b.toFixed(1) : b.toFixed(2)) + '×'; }
+  pos(b) { var v = (Math.log(Math.max(b, 0.1)) / Math.LN10 + 1) / 3; return Math.max(0, Math.min(100, v * 100)).toFixed(1); }
+  tte(pct, burn) {
+    if (burn < 1) return 'outlasts window';
+    var h = (pct / 100) * 672 / burn;
+    if (h >= 48) return Math.floor(h / 24) + ' d ' + Math.floor(h % 24) + ' h';
+    return Math.floor(h) + ' h ' + this.pad(Math.floor((h % 1) * 60)) + ' m';
+  }
+  renderVals() {
+    var self = this, st = this.state, t = st.t;
+    var p = this.props.lights || 'auto';
+    var down = st.override !== null ? st.override : (p === 'down' ? true : (p === 'up' ? false : st.sysDark));
+    var M = this.model();
+    var lit = [];
+    var out = {};
+    Object.keys(M).forEach(function (id) {
+      var m = M[id], burn = function (w) { return self.avg(m.r, t, w) / (1 - m.slo); };
+      var used = 0;
+      for (var x = 570; x < t; x += 0.25) used += m.r(Math.floor(x)) / (1 - m.slo) * 0.25 / 40320 * 100;
+      var pct = Math.max(0, m.start - used);
+      var b = { h1: burn(60), m5: burn(5), h6: burn(360), m30: burn(30), d3: burn(4320) };
+      var fast = b.h1 >= 14.4 && b.m5 >= 14.4, slow = b.h6 >= 6 && b.m30 >= 6, ticket = b.d3 >= 1 && b.h6 >= 1;
+      var gate = pct < m.floor, breach = pct <= 0;
+      if (fast) lit.push(id + ':fast'); if (slow) lit.push(id + ':slow'); if (ticket) lit.push(id + ':ticket'); if (gate) lit.push(id + ':gate');
+      out[id] = { m: m, pct: pct, b: b, fast: fast, slow: slow, ticket: ticket, gate: gate, breach: breach };
+    });
+    var unacked = lit.filter(function (k) { return st.acked.indexOf(k) < 0; });
+    var R = out.repolens;
+    var firedAt = st.firedAt;
+    if (R.fast && firedAt === null) { firedAt = t; setTimeout(function () { if (self.state.firedAt === null) self.setState({ firedAt: t }); }, 0); }
+    var A = function (on, cls) { return st.test ? 'is-white' : (on ? cls : ''); };
+    var consoles = Object.keys(out).map(function (id) {
+      var o = out[id], m = o.m, b = o.b;
+      var fallback = id === 'repolens' ? (t >= 581 && t < 611 ? 64 : (t >= 611 && t < 624 ? 3 : 7)) : null;
+      var waking = id === 'repolens' && t >= 648 && t < 649.5;
+      var lamps = [
+        { name: 'Fast burn', sub: '1h·5m ≥14.4', on: o.fast, cls: A(o.fast, unacked.indexOf(id + ':fast') >= 0 ? 'is-amber is-flash' : 'is-amber') },
+        { name: 'Slow burn', sub: '6h·30m ≥6', on: o.slow, cls: A(o.slow, 'is-amber') },
+        { name: 'Ticket', sub: '3d·6h ≥1', on: o.ticket, cls: A(o.ticket, 'is-amber') },
+        id === 'repolens' ? { name: 'Waking', sub: 'cold start', on: waking, cls: A(waking, 'is-white') } : { name: 'Probe', sub: 'synthetic ok', on: true, cls: A(true, 'is-white') },
+        id === 'repolens' ? { name: 'Fallback', sub: 'LLM > 10%', on: fallback > 10, cls: A(fallback > 10, 'is-white') } : { name: 'Latency', sub: 'p95 in target', on: true, cls: A(true, 'is-white') },
+        { name: 'Breach', sub: 'budget 0', on: o.breach, cls: A(o.breach, 'is-red') }
+      ].map(function (l) { return Object.assign(l, { aria: l.name + ' (' + l.sub + '): ' + (l.on || st.test ? 'lit' : 'off') }); });
+      var stateText = o.breach ? 'Breach' : (o.fast ? 'Page' : (o.slow ? 'Page · slow' : (o.ticket ? 'Ticket' : 'Nominal')));
+      var stateCls = o.breach ? 'is-red' : (o.fast || o.slow || o.ticket ? 'is-amber' : 'is-white');
+      var drainPerMin = m.r(Math.floor(t)) / (1 - m.slo) / 40320 * 100;
+      var extra = id === 'resolve' ? [{ k: 'p95 latency', v: '312 ms' }, { k: 'Ticket SLA timers live', v: '7' }]
+        : id === 'repolens' ? [{ k: 'Examiner fallback', v: fallback + '%' }, { k: 'Tokens per scan', v: '1,840 · $0.0011' }]
+        : [{ k: 'Match reason p95', v: '2.71 s' }, { k: 'Sign-in budget left', v: '91.2%' }];
+      var gateOpen = !o.gate || (id === 'repolens' && st.ovr);
+      return {
+        id: id, hid: 'h-' + id, call: m.call, name: m.name, slo: m.sloText, lamps: lamps,
+        stateText: stateText, stateCls: stateCls,
+        pctNum: o.pct.toFixed(2), pctText: o.pct.toFixed(2) + '%',
+        fillCls: o.breach ? 'is-red' : (o.fast || o.slow ? 'is-amber' : ''),
+        flowing: b.h1 >= 1, flowDur: Math.max(0.15, 6 / b.h1).toFixed(2),
+        drain: '−' + drainPerMin.toFixed(4) + '% per min now',
+        b1: self.fmtBurn(b.h1), b5: self.fmtBurn(b.m5), b1Pos: self.pos(b.h1), b5Pos: self.pos(b.m5),
+        b1Cls: b.h1 >= 14.4 ? 'is-amber' : '', b5Cls: b.m5 >= 14.4 ? 'is-amber' : '',
+        tte: self.tte(o.pct, b.h1), extra: extra, floor: m.floor,
+        gateText: gateOpen ? (o.gate ? 'Override · open' : 'Open') : 'Armed · blocked',
+        gateCls: st.test ? 'is-white' : (gateOpen ? (o.gate ? 'is-amber' : 'is-white') : 'is-amber'),
+        gateGuard: id === 'repolens' && o.gate
+      };
+    });
+    // big-board burn-down: 28 days, x 0..900, y 0..300 (100% at top)
+    var spikes = { resolve: { 10: 4.4 }, repolens: { 16: 7.0 }, jobbridge: {} };
+    var base = { resolve: 0.13 * 100 / 28, repolens: 0.5 * 100 / 28, jobbridge: 0.4 * 100 / 28 };
+    var hd = st.hoverDay;
+    var dayVals = {};
+    var series = ['resolve', 'repolens', 'jobbridge'].map(function (id) {
+      var v = 100, pts = [], vals = [], raw = [];
+      for (var d = 0; d <= 28; d++) {
+        if (d > 0) v -= base[id] * (id === 'jobbridge' && d >= 25 ? 3.25 : 1) + (spikes[id][d] || 0);
+        raw.push(v);
+      }
+      var off = out[id].m.start - raw[27];
+      for (var d2 = 0; d2 <= 28; d2++) {
+        var val = d2 === 28 ? out[id].pct : raw[d2] + off * d2 / 27;
+        vals.push(val);
+        pts.push((d2 / 28 * 900).toFixed(1) + ',' + (300 - val * 3).toFixed(1));
+      }
+      dayVals[id] = vals;
+      var burning = out[id].fast || out[id].slow;
+      return {
+        points: pts.join(' '), endX: 900, endY: (300 - out[id].pct * 3).toFixed(1),
+        stroke: id === 'jobbridge' ? 'var(--board-mute)' : (burning ? 'var(--lamp-amber)' : 'var(--board-ink)'),
+        width: id === 'repolens' ? 4 : 2, dash: id === 'jobbridge' ? '7 4' : 'none',
+        label: out[id].m.name.toUpperCase() + ' ' + out[id].pct.toFixed(1) + '%',
+        labelY: (300 - out[id].pct * 3 + 6).toFixed(1)
+      };
+    });
+    series[1].labelY = (parseFloat(series[1].labelY) + 14).toFixed(1);
+    series[2].labelY = (parseFloat(series[2].labelY) - 14).toFixed(1);
+    var months = function (d) { var dt = new Date(Date.UTC(2026, 9, 11) + d * 86400000); return dt.getUTCDate() + ' ' + ['Oct', 'Nov'][dt.getUTCMonth() - 9]; };
+    var days = [];
+    for (var d = 0; d <= 28; d++) (function (dd) { days.push({ x: (dd / 28 * 900 - 16).toFixed(1), hover: function () { self.setState({ hoverDay: dd }); } }); })(d);
+    var readout = hd === null ? 'Hover the board for a day’s reading' : months(hd) + ' · Resolve ' + dayVals.resolve[hd].toFixed(1) + '% · RepoLens ' + dayVals.repolens[hd].toFixed(1) + '% · JobBridge ' + dayVals.jobbridge[hd].toFixed(1) + '%';
+    var evs = [
+      [581.3, '09:41', 'Probe', 'Fixture scan fails: Examiner 503', true],
+      [583, '09:43', 'Engine', '5m over 14.4×, 1h only 1.9×: pending', false],
+      [591.5, '09:52', 'Engine', 'Both windows over 14.4×: page fires', true],
+      [591.6, '09:52', 'Resolve', 'RSV-1042 opened, P1, SLA clock running', false],
+      [591.7, '09:52', 'Telegram', 'Page delivered to Dior', false],
+      [595.6, '09:56', 'GitHub', 'Deploy gate armed: budget under 45%', false],
+      [598, '09:58', 'Dior', 'Acknowledged from phone', false],
+      [611, '10:11', 'Dior', 'Fallback chain reordered by env flag', true],
+      [616, '10:16', 'Engine', '5m under 14.4×: alert resets, ticket to Monitoring', true],
+      [641, '10:41', 'Engine', 'Slow-burn tier clears', false],
+      [648, '10:48', 'Probe', 'Cold start, woke in 34 s: not counted', false]
+    ];
+    var events = evs.filter(function (e) { return e[0] <= t; }).map(function (e) { return { time: e[1], src: e[2], text: e[3], cls: e[4] ? 'is-key' : '' }; });
+    var fired = firedAt !== null || R.fast;
+    var incState = R.fast ? 'firing' : (t >= 616 ? 'monitoring' : 'firing');
+    var mcLit = unacked.length > 0 && !st.test;
+    var headline = R.fast ? 'RepoLens burning ' + R.b.h1.toFixed(1) + '× budget' : (fired ? 'Alert reset · RepoLens recovering' : 'Three budgets, one burning slowly');
+    return {
+      lights: down ? 'down' : 'up', downStr: down ? 'true' : 'false', lightsWord: down ? 'down' : 'up',
+      toggleLights: function () { self.setState({ override: !down }); },
+      simClock: this.clock(t) + (t >= 660 ? ' end' : ''),
+      headline: headline,
+      mcCls: mcLit ? 'is-lit' : '',
+      mcLabel: mcLit ? 'Master caution lit: ' + unacked.length + ' new caution. Press to acknowledge.' : 'Master caution off',
+      ackCaution: function () { self.setState({ acked: lit.slice() }); },
+      heldStr: st.held ? 'true' : 'false', holdWord: st.held ? 'Resume' : 'Hold',
+      toggleHold: function () { self.setState({ held: !st.held }); },
+      replay: function () { self.setState({ t: 570, firedAt: null, acked: ['jobbridge:ticket'], cover: false, ovr: false, held: false }); },
+      lampTest: function () { clearTimeout(self.testTimer); self.setState({ test: true }); self.testTimer = setTimeout(function () { self.setState({ test: false }); }, 1800); },
+      chartLabel: 'Error budget remaining over 28 days. Resolve ' + out.resolve.pct.toFixed(1) + '%, RepoLens ' + out.repolens.pct.toFixed(1) + '%, JobBridge ' + out.jobbridge.pct.toFixed(1) + '%.',
+      series: series, days: days, readout: readout,
+      hoverOn: hd !== null, hoverX: hd === null ? 0 : (hd / 28 * 900).toFixed(1),
+      fired: fired, quiet: !fired, incState: incState, events: events,
+      announce: fired ? 'Incident RSV-1042 opened for RepoLens, page tier.' : '',
+      consoles: consoles,
+      coverStr: st.cover ? 'true' : 'false', coverWord: st.cover ? 'Close cover' : 'Lift cover',
+      toggleCover: function () { self.setState({ cover: !st.cover, ovr: st.cover ? false : st.ovr }); },
+      ovrStr: st.ovr ? 'true' : 'false', ovrDisabled: !st.cover,
+      toggleOverride: function () { if (st.cover) self.setState({ ovr: !st.ovr }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+CONTROL ROOM · ROADMAP AND HANDOFF
+==================================
+Last updated: 2026-11-09 (end of the first build session)
+Owner: Dior Wachira (DiorWachira). Only contributor; no co-author trailers on commits.
+
+How to use this file
+--------------------
+Open the repo in VS Code, start Claude Code in the terminal, and say:
+  "Read roadmap.txt and DECISIONS.md, then start the next unchecked task in milestone M<n>."
+Tick tasks here as they land ([x]), add a dated line under LOG, and record any design or
+architecture choice in DECISIONS.md.
+Deep explanation of every part: docs/PROJECT_GUIDE.md. Screens as images: docs/design/*.png.
+
+
+1. WHAT THIS IS
+---------------
+Control Room watches my three live apps, gives each an error budget, and when a budget
+burns too fast it opens a ticket in Resolve (my service desk) with the SLA clock running,
+pages me on Telegram, keeps a timeline and drafts a postmortem. A GitHub Action blocks
+deploys while a budget is under its floor.
+
+The apps:
+  Resolve    Next.js 15, Prisma, Neon Postgres, Vercel           (also the incident queue)
+  RepoLens   Python stdlib + JS, Render free tier (sleeps),       Gemini Examiner with a
+             model fallback chain
+  JobBridge  FastAPI, React, PostgreSQL, Neo4j, Docker Compose on a VM
+
+Method: multi-window, multi-burn-rate alerts (Google SRE Workbook, "Alerting on SLOs").
+  burn rate = error ratio / (1 - objective)
+  page   14.4x on 1h AND 5m   (2% of budget in an hour)
+  page   6x    on 6h AND 30m  (5% in six hours)
+  ticket 1x    on 3d AND 6h   (10% in three days)
+  Both windows must exceed the threshold. The short window gives a fast reset.
+
+Acceptance criteria from the spec (all covered by engine/tests/test_alerting.py):
+  - A 2-minute blip does not page; a sustained 5xx spike pages in the expected window.
+  - A firing alert creates exactly one Resolve ticket and resolves it when the burn stops.
+  - The deploy gate blocks a deploy in a drill when the budget is exhausted.
+    (Unit-tested at the API; the real drill is M5.)
+
+
+2. STATE TODAY (what exists and works)
+--------------------------------------
+Runs end to end in REPLAY MODE: the engine evaluates the built-in 8 November 2026 scenario
+(RepoLens Examiner outage) minute by minute and the UI shows the result.
+
+engine/ (Python, FastAPI)                                    21 tests passing
+  controlroom/config.py      loads slos.yaml (services, SLOs, tiers, deploy floors)
+  controlroom/sources.py     MetricSource protocol; ProfileSource (replay/tests);
+                             PrometheusSource (instant PromQL queries, untested live)
+  controlroom/burnrate.py    burn rate, budget remaining, time to exhaustion, tier states
+                             (inactive / pending / cooling / firing)
+  controlroom/alerts.py      lifecycle per (service, slo, tier), dedup by transition
+  controlroom/incidents.py   one incident per (service, slo, class); ticket tier suppressed
+                             after a page; monitoring -> resolved after 60 quiet minutes;
+                             SLA (P1 30m/4h, P2 1h/8h, P3 1d/5d); timeline events
+  controlroom/engine.py      evaluate(now): windows, tiers, alerts, incidents, deploy gate
+  controlroom/adapters.py    MemorySink/MemoryPager; ResolveSink (HTTP, needs Resolve API);
+                             WebhookPager (Telegram Bot API or generic webhook)
+  controlroom/probes.py      classify(): success / cold_start / error; http_probe()
+  controlroom/postmortem.py  deterministic blameless draft from the timeline (no LLM yet)
+  controlroom/status.py      public lamp state, 91-day strips, 90-day uptime
+  controlroom/scenario.py    the 8 Nov replay: error-ratio profiles + human annotations
+  controlroom/api.py         /api/health, /api/status, /api/budgets, /api/replay,
+                             /api/incidents, /api/incidents/{id}, /budget/{service};
+                             serves web/dist at /
+
+web/ (Vite 8, React 19, TypeScript strict; no UI/chart libraries)
+  screens/StatusScreen.tsx   public big board: lamps, 91-day strips (hover + arrow keys),
+                             consoles (now / measured / cold starts), incident history
+  screens/BudgetsScreen.tsx  console wall replay: draining budget tanks with gate floor,
+                             1h/5m burn meters (log scale), annunciator lamps, master caution
+                             (ack), hold / replay / lamp test / scrubber, 28-day rolling
+                             chart, incident strip sliding in with a growing timeline,
+                             guarded deploy-gate override (lift cover, then emergency-fix)
+  screens/IncidentScreen.tsx incident detail: SLA countdown drum, burn trace with numbered
+                             pins linked to the loop, context at fire, gate, postmortem draft
+  Guide.tsx                  opt-in first-run guide (11 checklist steps across all screens,
+                             spotlight ring, keys <- -> Esc, focus trap, aria-live) and the
+                             "Flight manual" help drawer (? key): tours, pipeline, glossary
+  components.tsx             Lamp, warm-up (loading), Link lost (error), 404
+  styles.css                 design tokens; light "house lights up" / dark "house lights down"
+
+repo
+  slos.yaml                          SLOs and tiers as code (PromQL templates per SLI)
+  .github/workflows/ci.yml           pytest + web build
+  .github/actions/budget-gate/       composite action for the app repos (curl + jq)
+  docs/resolve-api.md                endpoint Resolve must add (service token, idempotency)
+  DECISIONS.md, README.md, CLAUDE.md, .env.example
+
+Verified this session: pytest green; tsc + vite build green; screenshots reviewed of the
+status board, budget wall and incident page in light and dark; 375 px has no horizontal
+overflow; the guide navigates across screens and tracks its target.
+
+Not done (be honest in interviews): no real telemetry yet; ResolveSink and PrometheusSource
+have never talked to a live server; no e2e tests; no live probe runner; postmortem has no LLM.
+
+
+3. RUN IT
+---------
+Engine:
+  cd engine
+  python -m venv .venv
+  .venv\Scripts\pip install -e ".[dev]"
+  .venv\Scripts\python -m pytest -q
+  .venv\Scripts\python -m uvicorn controlroom.api:app --reload --port 8000
+Web (dev):
+  cd web && npm install && npm run dev          -> http://localhost:5173
+Web (served by engine):
+  cd web && npm run build                       -> http://localhost:8000
+Live mode: set PROMETHEUS_URL (see .env.example). Without it the API serves the replay.
+
+
+4. MILESTONES
+-------------
+M0  Foundation (this session)                                              [DONE]
+  [x] slos.yaml, engine maths, alert lifecycle, incident manager, deploy-gate API
+  [x] Acceptance tests with synthetic series; replay scenario; FastAPI
+  [x] Web UI for the three screens, guide, help drawer, light/dark, 375 px
+  [x] CI workflow, budget-gate action, docs
+
+M1  Telemetry backbone + JobBridge                                        [NEXT]
+  [ ] Decide backend: self-hosted Prometheus + Tempo + Grafana on the VM (Docker) vs
+      Grafana Cloud free tier. Write it in DECISIONS.md (cost, retention >= 28d, ops load).
+  [ ] infra/docker-compose.yml: otel-collector (OTLP in), prometheus (remote-write or
+      scrape the collector), tempo, grafana. Pin image versions. Collector config in
+      infra/otel-collector.yaml. Prometheus retention 35d so 28d windows always resolve.
+  [ ] JobBridge (separate PR in its repo, behind OTEL_ENABLED): opentelemetry-python
+      auto-instrumentation for FastAPI; histogram explanation_latency_seconds with buckets
+      including 2.5; http_server_requests_total with route + code. Pin semconv version.
+  [ ] Check the PromQL in slos.yaml against real metric names; fix the yaml, not the code.
+  [ ] Run the engine in live mode against it; add a test that PrometheusSource parses a
+      recorded /api/v1/query response (tests/fixtures/prom_*.json).
+  Done when: /api/budgets shows JobBridge numbers from Prometheus and a Grafana board exists.
+
+M2  Resolve + RepoLens instrumentation, synthetic probes
+  [ ] Resolve (PR in its repo): @vercel/otel, OTLP to the collector; http metrics with
+      route + status; latency histogram with le="0.4".
+  [ ] RepoLens (PR): opentelemetry-python; llm_requests_total{model,outcome},
+      llm_tokens_total{direction}, llm_cost_usd_total, llm_fallback_total. Follow the
+      OTel GenAI semantic conventions where they fit (still "Development"; pin the version).
+  [ ] probes/: runner (GitHub Actions cron every 5 min, or a systemd timer on the VM) using
+      controlroom.probes.http_probe. Journeys: Resolve demo login, RepoLens scan of a tiny
+      fixed repo, JobBridge health + demo match. Emit probe_runs_total{service,journey,
+      outcome} (push to the collector over OTLP/HTTP).
+  [ ] Cold-start logic: was_idle = no successful probe in the last 15 min; wake window 50 s
+      (slos.yaml cold_start_window_s). Test: 34 s after idle -> cold_start; 61 s -> error.
+  [ ] Status page day strips in live mode: daily SLI from Prometheus (increase over 1d,
+      91 points), cold-start days from probe_runs_total{outcome="cold_start"}.
+  Done when: all six SLOs in slos.yaml have live data and the status page has no replay data.
+
+M3  Engine in production + notifications
+  [ ] Persist engine state (alert states, incidents, gate) in SQLite so a restart never
+      re-opens a ticket. Load on boot; write on every transition. Test: restart mid-fire.
+  [ ] Deploy the engine (Docker on the VM next to the collector) with a healthcheck.
+      Evaluate every 60 s; alert on the engine itself if evaluations stop (dead-man switch:
+      a heartbeat to healthchecks.io or a Telegram message if no eval for 5 min).
+  [ ] Telegram bot: create bot, set TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID; message format
+      "[P1] RepoLens ... · RSV-1042 · <link>". Retry with backoff; record failures on the timeline.
+  [ ] Ack from Telegram (inline button -> webhook -> engine records kind="ack").
+  [ ] Handle missing data: a window with no valid events returns None today; decide whether
+      "no data for 10 min" should raise a probe-lost lamp (likely yes, as an advisory).
+
+M4  Resolve adapter, status page live, deploy gate in the app repos
+  [ ] Resolve PR: service account + scoped token + the endpoints in docs/resolve-api.md.
+  [ ] ResolveSink: send Idempotency-Key; tests against a fake server (httpx MockTransport).
+  [ ] Pull human notes back from Resolve ticket notes into the incident timeline (poll every
+      minute or a webhook); replaces scenario annotations in live mode.
+  [ ] Public status page deployed (engine serves web/dist; or static web on Vercel calling
+      the engine with CORS). Add caching headers on /api/status.
+  [ ] Wire budget-gate into each app's deploy workflow; set CONTROL_ROOM_URL repo variable.
+      Gate endpoint must be reachable from GitHub runners and must not leak internals.
+  Done when: a staging chaos run opens exactly one real Resolve ticket and closes it.
+
+M5  Postmortems, chaos drill, polish
+  [ ] LLM postmortem pass: feed postmortem.draft() + timeline to the model; it rewrites the
+      summary and proposes a root cause marked "to be confirmed". Draft only, never published.
+      Use the latest Claude model; keep the deterministic draft as the fallback.
+  [ ] Chaos drill script (scripts/chaos.py) against STAGING copies only: raise 5xx rate,
+      add latency, break the LLM key to force fallbacks. Prove page fires and resets, the
+      gate blocks a deploy, and one ticket opens and closes. Record a demo video.
+  [ ] Playwright e2e: status strip readout (hover + arrow keys); budget replay reaches the
+      incident strip; master caution ack; gate cover -> override; guide invite -> tour across
+      screens -> Esc -> never shown again; ? opens the help drawer. Mark the guide as seen
+      (localStorage cr.guide.seen=1) in all other tests.
+  [ ] Vitest for web/src/api.ts formatters and Guide step targets (every data-guide exists).
+  [ ] README screenshots (light, dark, 375 px) and an architecture diagram.
+
+
+5. KNOWN GAPS AND GOTCHAS
+-------------------------
+- Rolling windows forget. On the budget chart RepoLens jumps up on 28 Oct when the 30 Sep
+  outage ages out. That is correct; the caption explains it. Don't "fix" it.
+- The incident moved to Monitoring at 10:40 (slow tier), not 10:16 as the design canvas
+  said. Engine is right; see DECISIONS.md.
+- The replay "now" is fixed at 2026-11-08 10:52 EAT (scenario.NOW). The SLA countdown on the
+  incident page starts from that snapshot and ticks in real time from page load.
+- ProfileSource assumes steady traffic (time-weighted ratios). Prometheus ratios are
+  event-weighted. Fine for the replay; don't compare them numerically in tests.
+- Budgets replay advances one engine minute every 250 ms (500 ms with reduced motion).
+  The flow ticks are hidden under prefers-reduced-motion; values still update.
+- Status 404 / fault / loading screens exist (components.tsx). There is no toast system yet.
+- Historic incidents before the replay (RSV-1031, 1024, 1017, 1009) are static records in
+  scenario.HISTORY and are not clickable; in live mode they come from Resolve.
+- Windows dev: the preview tool may pick another project's launch config; start the engine
+  with uvicorn directly if that happens.
+- Python 3.14 locally, CI pins 3.12; keep syntax compatible with 3.11.
+
+
+6. DESIGN SYSTEM (keep it consistent)
+-------------------------------------
+Concept "House Lights": a 1960s mission operations room. One big board (dark projection
+screen with plotboard grid, dark in both modes) over a row of sage consoles.
+Tokens (web/src/styles.css):
+  wall #E6DDC8  console #AAB08F  console-deep #7C8462  ink #1D2115  board #1B1F18
+  lamps: white #F1E8CA (nominal/advisory), amber #E59C2F (budget burning ONLY),
+         red #A9412F (breach/outage ONLY)
+  dark ("house lights down"): wall #11130D, console #2A2F21, ink #E6E0CA
+Type: Barlow Condensed (display, plates, lamp legends), Barlow (body), Share Tech Mono (data).
+Rules: tight radii (2px), hard 8px "kick plate" shadows, no glow/blur/gradients, focus ring
+uses ink not amber, every animation off under prefers-reduced-motion.
+Signature pieces: draining budget tank + gate floor; incident strip sliding in from the
+edge; annunciator riser + master caution + lamp test; guarded deploy-gate switch.
+Design canvas: https://claude.ai/artifact/NpTxuU7g2miz56FNBYwxWC
+Heads-up: ~/.claude/CLAUDE.md now lists annunciator lamps as retired for future projects.
+They stay here because Control Room's brief asked for them; don't reuse them elsewhere.
+
+
+7. LOG
+------
+2026-11-09  M0 built: engine + 21 tests, API, replay, web UI (3 screens, guide, help),
+            CI, budget-gate action, docs. Repo initialised.
+2026-11-09  Added docs/PROJECT_GUIDE.md, design screenshots (docs/design/*.png, light/dark/
+            375 px) and the original canvas source (docs/design/canvas/). ?lights= and
+            ?guide=off URL params for screenshots. First commit.
+            Note: agentacl/, context-profiler/, receipt-index/ at the root are other
+            projects' design files kept locally and never committed.

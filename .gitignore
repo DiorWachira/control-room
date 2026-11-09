@@ -1,0 +1,25 @@
+# Python
+engine/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Web
+web/node_modules/
+web/dist/
+
+# Local
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+# Build caches
+web/*.tsbuildinfo
+
+# Other projects' design files kept locally (not part of Control Room)
+/agentacl/
+/context-profiler/
+/receipt-index/

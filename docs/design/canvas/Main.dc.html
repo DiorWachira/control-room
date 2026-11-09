@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Control Room · Status board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:ital,wght@0,400;0,500;0,600;1,400&amp;family=Share+Tech+Mono&amp;display=swap">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.cr{--wall:#E6DDC8;--wall-2:#DDD2B9;--rule:#B3A686;--console:#AAB08F;--console-hi:#C5C8AC;--console-deep:#7C8462;--kick:#565D41;--ink:#1D2115;--ink-2:#363C29;--board:#1B1F18;--board-2:#2A3024;--board-ink:#ECE5CF;--board-mute:#B4B19A;--board-rule:#3A4032;--tick:#7E866B;--glass:#363A2E;--glass-ink:#BDBBA4;--lamp-white:#F1E8CA;--lamp-amber:#E59C2F;--lamp-red:#A9412F;--lamp-red-ink:#FBF1E8;--lamp-ink:#1D1A10;--focus:#1D2115;
+background:var(--wall);color:var(--ink);font-family:'Barlow',system-ui,sans-serif;font-size:16px;line-height:1.5;min-height:100vh}
+.cr[data-lights="down"]{--wall:#11130D;--wall-2:#181B12;--rule:#3A3F2D;--console:#2A2F21;--console-hi:#363C2A;--console-deep:#1F2318;--kick:#0B0D08;--ink:#E6E0CA;--ink-2:#B3B199;--board:#080A06;--board-2:#15180F;--board-rule:#2B3024;--tick:#6C745A;--glass:#22261B;--glass-ink:#A9A790;--focus:#ECE5CF}
+.cr *{box-sizing:border-box}
+.cr :focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.on-board :focus-visible{outline-color:var(--board-ink)}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,40px)}
+.cond{font-family:'Barlow Condensed',sans-serif}
+.mono{font-family:'Share Tech Mono',ui-monospace,monospace;letter-spacing:0}
+.label{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.overhead{background:var(--board);color:var(--board-ink);border-bottom:6px solid var(--board-2)}
+.overhead-in{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;min-height:64px;padding-block:10px}
+.mark{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none}
+.mark-lamps{display:grid;grid-template-columns:repeat(3,8px);gap:3px}
+.mark-lamps span{width:8px;height:8px;background:var(--glass);border:1px solid var(--board-mute)}
+.mark-lamps span.on{background:var(--lamp-amber);border-color:var(--lamp-amber)}
+.nav{display:flex;flex-wrap:wrap;gap:4px}
+.nav a{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:10px 12px;min-height:44px;display:inline-flex;align-items:center;border-bottom:3px solid transparent;color:var(--board-mute)}
+.nav a:hover{color:var(--board-ink)}
+.nav a[aria-current="page"]{color:var(--board-ink);border-bottom-color:var(--board-ink)}
+.clocks{display:flex;gap:18px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.clock{display:flex;flex-direction:column;line-height:1.1}
+.clock .label{font-size:11px;color:var(--board-mute)}
+.clock .mono{font-size:20px}
+.lightsw{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px 6px 8px;background:var(--board-2);color:var(--board-ink);border:1px solid var(--board-rule);border-radius:2px;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.knob{width:28px;height:28px;border-radius:50%;background:var(--board-mute);border:3px solid var(--board-rule);position:relative;transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.knob::after{content:"";position:absolute;left:50%;top:2px;width:3px;height:9px;margin-left:-1.5px;background:var(--board)}
+.lightsw[aria-pressed="true"] .knob{transform:rotate(-135deg)}
+.lamp{display:inline-flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:6px 12px;background:var(--glass);color:var(--glass-ink);border:2px solid var(--kick);border-radius:2px;box-shadow:inset 0 0 0 3px rgba(0,0,0,.22);font:600 13px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;transition:background .25s,color .25s}
+.lamp.is-white{background:var(--lamp-white);color:var(--lamp-ink)}
+.lamp.is-amber{background:var(--lamp-amber);color:var(--lamp-ink)}
+.lamp.is-red{background:var(--lamp-red);color:var(--lamp-red-ink)}
+.board{background:var(--board);color:var(--board-ink);border:10px solid var(--board-2);border-radius:2px;background-image:linear-gradient(var(--board-rule) 1px,transparent 1px),linear-gradient(90deg,var(--board-rule) 1px,transparent 1px);background-size:100% 48px,48px 100%;background-position:0 -1px,-1px 0}
+.board-in{background:rgba(0,0,0,.0);padding:clamp(20px,3vw,40px)}
+.svc{display:grid;grid-template-columns:150px 230px minmax(0,1fr) 110px;gap:16px 24px;align-items:center;padding:18px 0;border-top:1px solid var(--board-rule)}
+.svc:first-of-type{border-top:0}
+.ticks{display:flex;align-items:flex-end;gap:2px;height:44px;background:var(--board)}
+.tick{flex:1 1 0;min-width:0;height:30px;background:var(--tick);border-radius:1px 1px 0 0}
+.tick.is-amber{background:var(--lamp-amber);height:44px}
+.tick.is-red{background:var(--lamp-red);height:44px;outline:1px solid var(--lamp-red-ink);outline-offset:-1px}
+.tick.is-cold{background:transparent;box-shadow:inset 0 0 0 1px var(--board-mute);height:30px}
+.tick:hover{background:var(--board-ink)}
+.scale{display:flex;justify-content:space-between;color:var(--board-mute);font-size:12px;margin-top:6px}
+.console-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch}
+.console{background:var(--console);border-top:12px solid var(--console-deep);border-radius:2px 2px 0 0;box-shadow:0 8px 0 var(--kick);display:flex;flex-direction:column}
+.console-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-bottom:2px solid var(--console-deep)}
+.plate{display:inline-block;background:var(--board);color:var(--board-ink);padding:4px 10px;font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase;border-radius:1px;position:relative}
+.console-body{padding:20px;display:flex;flex-direction:column;gap:14px;flex:1}
+.key{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;background:var(--console-hi);color:var(--ink);border:2px solid var(--kick);border-bottom-width:6px;border-radius:2px;font:600 15px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:transform .08s,border-bottom-width .08s}
+.key:hover{background:var(--wall)}
+.key:active{transform:translateY(4px);border-bottom-width:2px}
+.field{display:flex;flex-direction:column;gap:6px;flex:1 1 220px}
+.field input{min-height:44px;padding:8px 12px;font:400 16px 'Share Tech Mono',monospace;background:var(--wall);color:var(--ink);border:2px solid var(--kick);border-radius:2px}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:grid;grid-template-columns:150px 120px minmax(0,1fr) 120px;gap:8px 20px;padding:16px 0;border-top:1px solid var(--rule);align-items:baseline}
+.sec-title{display:flex;align-items:baseline;gap:16px;margin:0 0 18px}
+.sec-num{font:400 14px 'Share Tech Mono',monospace;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--board-mute);font-size:13px;align-items:center}
+.sw{display:inline-block;width:10px;height:16px;vertical-align:-3px;margin-right:6px;background:var(--tick)}
+.sw.is-amber{background:var(--lamp-amber)}.sw.is-red{background:var(--lamp-red)}.sw.is-cold{background:transparent;box-shadow:inset 0 0 0 1px var(--board-mute)}
+@media (max-width:1000px){.svc{grid-template-columns:150px minmax(0,1fr) 100px}.svc .ticks-cell{grid-column:1/-1;order:3}}
+@media (max-width:860px){.console-row{grid-template-columns:minmax(0,1fr)}.log li{grid-template-columns:minmax(0,1fr) auto}.log li .log-desc{grid-column:1/-1}}
+@media (max-width:560px){.svc{grid-template-columns:minmax(0,1fr) auto}.svc .svc-lamp{grid-column:1/-1;justify-self:start}.clocks{margin-left:0}.hero-h{font-size:44px!important}}
+@media (prefers-reduced-motion:reduce){.cr *,.cr *::before,.cr *::after{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div class="cr" data-lights="{{lights}}">
+
+<header class="overhead on-board">
+<div class="wrap overhead-in">
+<a class="mark" href="Main.dc.html"><span class="mark-lamps" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></span>Control Room</a>
+<nav class="nav" aria-label="Control Room screens">
+<a href="Main.dc.html" aria-current="page">Status</a>
+<a href="Budget.dc.html">Budgets</a>
+<a href="Incident.dc.html">RSV-1042</a>
+</nav>
+<div class="clocks">
+<div class="clock"><span class="label">Nairobi · EAT</span><span class="mono">{{eat}}</span></div>
+<div class="clock"><span class="label">UTC</span><span class="mono">{{utc}}</span></div>
+<button class="lightsw" type="button" aria-pressed="{{downStr}}" onClick="{{toggleLights}}"><span class="knob" aria-hidden="true"></span>House lights {{lightsWord}}</button>
+</div>
+</div>
+</header>
+
+<main>
+<section class="wrap" style="padding-top: 40px; padding-bottom: 24px" aria-labelledby="board-h">
+<div class="board on-board">
+<div class="board-in">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: flex-start">
+<p class="label" style="margin: 0; color: var(--board-mute)">Big board · public status · refreshed every 60 s</p>
+<p class="mono" style="margin: 0; color: var(--board-mute); font-size: 14px">MET 412:06:18 since first probe</p>
+</div>
+<h1 id="board-h" class="cond hero-h" style="margin: 18px 0 8px; font-weight: 600; font-size: 76px; line-height: .95; letter-spacing: -.005em; text-transform: uppercase; max-width: 15ch">Two of three systems nominal</h1>
+<p style="margin: 0 0 28px; max-width: 62ch; font-size: 18px; color: var(--board-mute)">RepoLens scans have been failing more often than usual since 09:41 EAT. Its AI examiner's primary model is returning errors; the fallback chain has been reordered and we are watching the error rate fall.</p>
+
+<div role="list">
+<sc-for list="{{services}}" as="s" hint-placeholder-count="3">
+<div class="svc" role="listitem">
+<span class="lamp svc-lamp {{s.lampCls}}" style="width: 150px">{{s.lampText}}</span>
+<div>
+<p class="cond" style="margin: 0; font-weight: 600; font-size: 28px; letter-spacing: .04em; text-transform: uppercase; line-height: 1">{{s.name}}</p>
+<p style="margin: 4px 0 0; font-size: 14px; color: var(--board-mute)">{{s.what}}</p>
+</div>
+<div class="ticks-cell">
+<div class="ticks" aria-hidden="true">
+<sc-for list="{{s.ticks}}" as="t" hint-placeholder-count="90">
+<span class="tick {{t.cls}}" onMouseEnter="{{t.hover}}"></span>
+</sc-for>
+</div>
+<div class="scale mono"><span>10 Aug</span><span>{{s.readout}}</span><span>Today</span></div>
+<p style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{s.summary}}</p>
+</div>
+<div style="text-align: right">
+<p class="mono" style="margin: 0; font-size: 26px; line-height: 1">{{s.uptime}}</p>
+<p class="label" style="margin: 4px 0 0; font-size: 11px; color: var(--board-mute)">90-day SLI</p>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div class="legend" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--board-rule)">
+<span><span class="sw"></span>Nominal day</span>
+<span><span class="sw is-amber"></span>Budget burning (raised)</span>
+<span><span class="sw is-red"></span>Outage (raised, outlined)</span>
+<span><span class="sw is-cold"></span>Cold starts only, not counted</span>
+<span class="mono" style="margin-left: auto">Hover a day for its reading</span>
+</div>
+</div>
+</div>
+</section>
+
+<section class="wrap" style="padding-block: 32px" aria-label="Consoles">
+<div class="console-row">
+
+<article class="console">
+<div class="console-head"><span class="plate">Now</span><span class="lamp is-amber" style="min-height: 32px; padding: 4px 10px">Monitoring</span></div>
+<div class="console-body">
+<p class="mono" style="margin: 0; font-size: 14px; color: var(--ink-2)">RSV-1042 · opened 09:52 EAT · P1</p>
+<h2 class="cond" style="margin: 0; font-size: 30px; line-height: 1.05; font-weight: 600; text-transform: uppercase">RepoLens scan failures</h2>
+<p style="margin: 0">About 4 in 10 scans failed for half an hour. Scans you start now should succeed; RepoLens is using its faster backup model first.</p>
+<p style="margin: 0; font-size: 14px; color: var(--ink-2)">Last update 10:16 EAT: failures back under the alert threshold. Closes at 11:16 if it stays quiet.</p>
+<div style="margin-top: auto"><a class="key" href="Incident.dc.html">Open incident log →</a></div>
+</div>
+</article>
+
+<article class="console">
+<div class="console-head"><span class="plate">Measured</span><span class="label" style="color: var(--ink-2)">28-day objectives</span></div>
+<div class="console-body">
+<dl style="margin: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px 16px">
+<dt>Resolve · tickets load and save</dt><dd class="mono" style="margin: 0">99.9%</dd>
+<dt>Resolve · pages respond in 400 ms (p95)</dt><dd class="mono" style="margin: 0">99%</dd>
+<dt>RepoLens · scans finish</dt><dd class="mono" style="margin: 0">99.5%</dd>
+<dt>JobBridge · sign-in works</dt><dd class="mono" style="margin: 0">99.9%</dd>
+<dt>JobBridge · match reasons in 2.5 s</dt><dd class="mono" style="margin: 0">95%</dd>
+</dl>
+<p style="margin: 0; font-size: 14px; color: var(--ink-2)">Each objective leaves an error budget. Alerts fire only when the budget burns fast on both a long and a short window, so a two-minute blip never pages anyone.</p>
+<div style="margin-top: auto"><a class="key" href="Budget.dc.html">See the budget wall →</a></div>
+</div>
+</article>
+
+<article class="console">
+<div class="console-head"><span class="plate">Cold starts</span><span class="lamp" style="min-height: 32px; padding: 4px 10px">Waking</span></div>
+<div class="console-body">
+<p style="margin: 0">RepoLens runs on a free hosting tier that puts it to sleep after 15 quiet minutes. The first scan after a nap can take up to 50 seconds.</p>
+<p style="margin: 0">If it answers inside that wake window, the probe logs <span class="mono">cold_start</span>, the lamp reads WAKING and nothing is counted against the budget. Past 50 seconds, it counts as a failure.</p>
+<p class="mono" style="margin: 0; font-size: 14px; color: var(--ink-2)">This week: 41 cold starts · median wake 31 s · 2 over the window</p>
+</div>
+</article>
+
+</div>
+</section>
+
+<section class="wrap" style="padding-block: 40px 24px" aria-labelledby="hist-h">
+<div class="sec-title"><span class="sec-num">04</span><h2 id="hist-h" class="cond" style="margin: 0; font-size: 34px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em">Incident history · last 30 days</h2></div>
+<ol class="log">
+<sc-for list="{{history}}" as="h" hint-placeholder-count="5">
+<li>
+<span class="mono" style="font-size: 14px">{{h.when}}</span>
+<span class="label">{{h.svc}}</span>
+<span class="log-desc"><strong style="font-weight: 600">{{h.title}}</strong> — {{h.detail}}</span>
+<span class="lamp {{h.lampCls}}" style="min-height: 30px; padding: 4px 8px; font-size: 12px; justify-self: end">{{h.state}}</span>
+</li>
+</sc-for>
+</ol>
+</section>
+
+<section class="wrap" style="padding-block: 24px 64px" aria-labelledby="sub-h">
+<div class="console" style="box-shadow: 0 8px 0 var(--kick)">
+<div class="console-body" style="flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 20px 28px">
+<div style="flex: 2 1 320px">
+<h2 id="sub-h" class="cond" style="margin: 0 0 4px; font-size: 26px; font-weight: 600; text-transform: uppercase">Hear about incidents</h2>
+<p style="margin: 0; color: var(--ink-2)">One email when an incident opens and one when it closes. No marketing.</p>
+</div>
+<div class="field"><label class="label" for="sub-email">Email address</label><input id="sub-email" type="email" autocomplete="email" placeholder="you@example.co.ke"></div>
+<button class="key" type="button">Subscribe</button>
+</div>
+</div>
+<p class="mono" style="margin: 32px 0 0; font-size: 13px; color: var(--ink-2)">Control Room · built and on call: Dior Wachira, Nairobi · probes run every minute from a VM in Frankfurt and from GitHub Actions</p>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"lights":{"editor":"enum","options":["auto","up","down"],"default":"auto"},"$preview":{"width":1440,"height":2100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = { sysDark: dark, override: null, hover: null, now: Date.now() };
+  }
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () { self.setState({ now: Date.now() }); }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  pad(n) { return (n < 10 ? '0' : '') + n; }
+  hms(d, off) {
+    var t = new Date(d + off * 3600000);
+    return this.pad(t.getUTCHours()) + ':' + this.pad(t.getUTCMinutes()) + ':' + this.pad(t.getUTCSeconds());
+  }
+  dayLabel(i) {
+    var start = Date.UTC(2026, 7, 10);
+    var d = new Date(start + i * 86400000);
+    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    return d.getUTCDate() + ' ' + m;
+  }
+  renderVals() {
+    var self = this;
+    var p = this.props.lights || 'auto';
+    var down = this.state.override !== null ? this.state.override : (p === 'down' ? true : (p === 'up' ? false : this.state.sysDark));
+    // day index 0 = 10 Aug 2026, 90 = 8 Nov 2026 (today)
+    var marks = {
+      resolve: { 72: ['amber', 'p95 1.9 s for 32 min (Neon pool)'], 40: ['amber', 'Vercel build cache miss, 6 min slow'] },
+      repolens: { 90: ['red', 'Examiner 503s, ongoing'], 78: ['amber', 'Wake exceeded window twice'], 51: ['red', 'Render deploy stuck, 41 min'], 22: ['amber', 'Gemini quota hit, fallback held'], 85: ['cold', '9 cold starts, none counted'], 88: ['cold', '6 cold starts, none counted'], 64: ['cold', '7 cold starts, none counted'] },
+      jobbridge: { 84: ['red', 'Sign-in down 14 min (Neo4j OOM)'], 60: ['amber', 'Match reasons p95 4.1 s'] }
+    };
+    var defs = [
+      { id: 'resolve', name: 'Resolve', what: 'Service desk · Next.js on Vercel, Neon Postgres', lampCls: 'is-white', lampText: 'Nominal', uptime: '99.97%' },
+      { id: 'repolens', name: 'RepoLens', what: 'Repo examiner · Render free tier, Gemini with fallback', lampCls: 'is-amber', lampText: 'Degraded', uptime: '99.41%' },
+      { id: 'jobbridge', name: 'JobBridge', what: 'Job matching · FastAPI, Postgres, Neo4j on a VM', lampCls: 'is-white', lampText: 'Nominal', uptime: '99.93%' }
+    ];
+    var hv = this.state.hover;
+    var services = defs.map(function (d) {
+      var ticks = [];
+      var counts = { amber: 0, red: 0, cold: 0 };
+      for (var i = 0; i <= 90; i++) {
+        var m = marks[d.id][i];
+        var cls = m ? 'is-' + m[0] : '';
+        if (m) counts[m[0]]++;
+        (function (idx, mm) {
+          ticks.push({ cls: cls, hover: function () { self.setState({ hover: { svc: d.id, i: idx, note: mm ? mm[1] : 'Nominal, no budget burned' } }); } });
+        })(i, m);
+      }
+      var readout = (hv && hv.svc === d.id) ? self.dayLabel(hv.i) + ' · ' + hv.note : '91 days';
+      var n = function (k, one, many) { return k + ' ' + (k === 1 ? one : many); };
+      var summary = d.name + ', last 91 days: ' + n(counts.red, 'outage day', 'outage days') + ', ' + n(counts.amber, 'day', 'days') + ' with budget burning, ' + n(counts.cold, 'day', 'days') + ' with uncounted cold starts, the rest nominal.';
+      return Object.assign({}, d, { ticks: ticks, readout: readout, summary: summary });
+    });
+    var history = [
+      { when: '8 Nov · 09:41–', svc: 'RepoLens', title: 'Scans failing', detail: 'the Examiner’s primary model returned 503s; fallback chain reordered at 10:11.', state: 'Monitoring', lampCls: 'is-amber' },
+      { when: '2 Nov · 21:14–21:28', svc: 'JobBridge', title: 'Sign-in unavailable for 14 minutes', detail: 'the Neo4j container hit its memory limit and took auth with it. Auth now degrades without the graph.', state: 'Resolved', lampCls: '' },
+      { when: '27 Oct · 06:02–06:20', svc: 'RepoLens', title: 'Slow first scans after deploy', detail: 'two wakes took 61 s and 58 s, past the 50 s window, so they were counted.', state: 'Resolved', lampCls: '' },
+      { when: '21 Oct · 13:40–14:12', svc: 'Resolve', title: 'Ticket list slow (p95 1.9 s)', detail: 'demo traffic exhausted the Neon connection pool; moved to the pooled endpoint.', state: 'Resolved', lampCls: '' },
+      { when: '9 Oct · 18:05–18:47', svc: 'JobBridge', title: 'Match reasons slow (p95 4.1 s)', detail: 'the explanation model was cold after a VM reboot; added a warm-up call to boot.', state: 'Resolved', lampCls: '' }
+    ];
+    var now = this.state.now;
+    return {
+      lights: down ? 'down' : 'up',
+      downStr: down ? 'true' : 'false',
+      lightsWord: down ? 'down' : 'up',
+      toggleLights: function () { self.setState({ override: !down }); },
+      eat: this.hms(now, 3),
+      utc: this.hms(now, 0),
+      services: services,
+      history: history
+    };
+  }
+}
+</script>
+</body>
+</html>

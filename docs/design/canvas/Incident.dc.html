@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Control Room · Incident RSV-1042</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:ital,wght@0,400;0,500;0,600;1,400&amp;family=Share+Tech+Mono&amp;display=swap">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.cr{--wall:#E6DDC8;--wall-2:#DDD2B9;--rule:#B3A686;--console:#AAB08F;--console-hi:#C5C8AC;--console-deep:#7C8462;--kick:#565D41;--ink:#1D2115;--ink-2:#363C29;--board:#1B1F18;--board-2:#2A3024;--board-ink:#ECE5CF;--board-mute:#B4B19A;--board-rule:#3A4032;--tick:#7E866B;--glass:#363A2E;--glass-ink:#BDBBA4;--lamp-white:#F1E8CA;--lamp-amber:#E59C2F;--lamp-red:#A9412F;--lamp-red-ink:#FBF1E8;--lamp-ink:#1D1A10;--focus:#1D2115;
+background:var(--wall);color:var(--ink);font-family:'Barlow',system-ui,sans-serif;font-size:16px;line-height:1.5;min-height:100vh;overflow-x:clip}
+.cr[data-lights="down"]{--wall:#11130D;--wall-2:#181B12;--rule:#3A3F2D;--console:#2A2F21;--console-hi:#363C2A;--console-deep:#1F2318;--kick:#0B0D08;--ink:#E6E0CA;--ink-2:#B3B199;--board:#080A06;--board-2:#15180F;--board-rule:#2B3024;--tick:#6C745A;--glass:#22261B;--glass-ink:#A9A790;--focus:#ECE5CF}
+.cr *{box-sizing:border-box}
+.cr :focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.on-board :focus-visible{outline-color:var(--board-ink)}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,40px)}
+.cond{font-family:'Barlow Condensed',sans-serif}
+.mono{font-family:'Share Tech Mono',ui-monospace,monospace}
+.label{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.overhead{background:var(--board);color:var(--board-ink);border-bottom:6px solid var(--board-2)}
+.overhead-in{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;min-height:64px;padding-block:10px}
+.mark{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none}
+.mark-lamps{display:grid;grid-template-columns:repeat(3,8px);gap:3px}
+.mark-lamps span{width:8px;height:8px;background:var(--glass);border:1px solid var(--board-mute)}
+.mark-lamps span.on{background:var(--lamp-amber);border-color:var(--lamp-amber)}
+.nav{display:flex;flex-wrap:wrap;gap:4px}
+.nav a{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:10px 12px;min-height:44px;display:inline-flex;align-items:center;border-bottom:3px solid transparent;color:var(--board-mute)}
+.nav a:hover{color:var(--board-ink)}
+.nav a[aria-current="page"]{color:var(--board-ink);border-bottom-color:var(--board-ink)}
+.clocks{display:flex;gap:18px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.clock{display:flex;flex-direction:column;line-height:1.1}
+.clock .label{font-size:11px;color:var(--board-mute)}
+.clock .mono{font-size:20px}
+.lightsw{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px 6px 8px;background:var(--board-2);color:var(--board-ink);border:1px solid var(--board-rule);border-radius:2px;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.knob{width:28px;height:28px;border-radius:50%;background:var(--board-mute);border:3px solid var(--board-rule);position:relative;transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.knob::after{content:"";position:absolute;left:50%;top:2px;width:3px;height:9px;margin-left:-1.5px;background:var(--board)}
+.lightsw[aria-pressed="true"] .knob{transform:rotate(-135deg)}
+.lamp{display:inline-flex;align-items:center;justify-content:center;text-align:center;min-height:36px;padding:4px 12px;background:var(--glass);color:var(--glass-ink);border:2px solid #0E100B;border-radius:2px;box-shadow:inset 0 0 0 3px rgba(0,0,0,.22);font:600 13px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.lamp.is-white{background:var(--lamp-white);color:var(--lamp-ink)}
+.lamp.is-amber{background:var(--lamp-amber);color:var(--lamp-ink)}
+.lamp.is-red{background:var(--lamp-red);color:var(--lamp-red-ink)}
+.board{background:var(--board);color:var(--board-ink);border:10px solid var(--board-2);border-radius:2px;background-image:linear-gradient(var(--board-rule) 1px,transparent 1px),linear-gradient(90deg,var(--board-rule) 1px,transparent 1px);background-size:100% 48px,48px 100%}
+.board-in{padding:clamp(18px,3vw,36px)}
+.console{background:var(--console);border-top:12px solid var(--console-deep);border-radius:2px 2px 0 0;box-shadow:0 8px 0 var(--kick);display:flex;flex-direction:column;min-width:0}
+.console-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 18px;border-bottom:2px solid var(--console-deep);flex-wrap:wrap}
+.console-body{padding:18px;display:flex;flex-direction:column;gap:12px}
+.plate{display:inline-block;background:var(--board);color:var(--board-ink);padding:4px 10px;font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase;border-radius:1px}
+.key{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;background:var(--console-hi);color:var(--ink);border:2px solid var(--kick);border-bottom-width:6px;border-radius:2px;font:600 15px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:transform .08s,border-bottom-width .08s}
+.key:hover{background:var(--wall)}
+.key:active{transform:translateY(4px);border-bottom-width:2px}
+.key[aria-pressed="true"]{background:var(--ink);color:var(--wall)}
+.head-grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:stretch}
+.drum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.drum span{display:flex;flex-direction:column;align-items:center;padding:8px 0 6px;background:var(--board);color:var(--board-ink);border:2px solid #0E100B;border-radius:2px;font:400 40px/1 'Share Tech Mono',monospace;background-image:linear-gradient(transparent 49%,rgba(0,0,0,.5) 49%,rgba(0,0,0,.5) 51%,transparent 51%)}
+.drum small{font:600 11px 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:var(--board-mute);margin-top:6px}
+.body-grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:start;margin-top:30px}
+.loop{list-style:none;margin:0;padding:0;position:relative}
+.loop::before{content:"";position:absolute;left:21px;top:8px;bottom:8px;border-left:2px solid var(--rule)}
+.ev{position:relative;margin:0 0 10px}
+.ev-btn{display:grid;grid-template-columns:44px 96px minmax(0,1fr);gap:4px 16px;width:100%;text-align:left;padding:12px 14px 12px 0;background:transparent;color:inherit;border:0;border-top:1px solid var(--rule);font:inherit;cursor:pointer;align-items:baseline}
+.ev-btn:hover .ev-text{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.ev-btn[aria-pressed="true"]{background:var(--wall-2);box-shadow:inset 6px 0 0 var(--ink)}
+.pin{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;width:44px;height:30px;background:var(--wall);border:2px solid var(--ink);font:400 15px 'Share Tech Mono',monospace;border-radius:1px}
+.ev-btn[aria-pressed="true"] .pin{background:var(--ink);color:var(--wall)}
+.ev.is-key .pin{background:var(--lamp-amber);color:var(--lamp-ink);border-color:#0E100B}
+.src{display:inline-block;font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:1px 6px;border:1px solid var(--ink-2);margin-right:8px}
+.ev-text{grid-column:3}
+.ev-meta{grid-column:3;font:400 13px 'Share Tech Mono',monospace;color:var(--ink-2)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;margin:0}
+.kv dt{font-size:15px}
+.kv dd{margin:0;font-family:'Share Tech Mono',monospace;text-align:right}
+.pm h3{margin:14px 0 4px;font:600 16px 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.pm p{margin:0}
+.tbc{background:var(--wall);border:2px dashed var(--kick);padding:10px 12px}
+.check{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--rule)}
+.check input{width:22px;height:22px;margin:2px 0 0;accent-color:var(--ink);flex:none}
+@supports (animation-timeline: view()){.ev{animation:evin linear both;animation-timeline:view();animation-range:entry 0% entry 70%}}
+@keyframes evin{from{transform:translateX(140px);opacity:0}to{transform:none;opacity:1}}
+@media (max-width:1100px){.head-grid,.body-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.clocks{margin-left:0}.hero-h{font-size:64px!important}.ev-btn{grid-template-columns:44px minmax(0,1fr)}.ev-btn .ev-time{grid-column:2}.ev-text,.ev-meta{grid-column:1/-1;padding-left:14px}.loop::before{display:none}.drum span{font-size:30px}}
+@media (prefers-reduced-motion:reduce){.cr *,.cr *::before,.cr *::after{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div class="cr" data-lights="{{lights}}">
+
+<header class="overhead on-board">
+<div class="wrap overhead-in">
+<a class="mark" href="Main.dc.html"><span class="mark-lamps" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></span>Control Room</a>
+<nav class="nav" aria-label="Control Room screens">
+<a href="Main.dc.html">Status</a>
+<a href="Budget.dc.html">Budgets</a>
+<a href="Incident.dc.html" aria-current="page">RSV-1042</a>
+</nav>
+<div class="clocks">
+<div class="clock"><span class="label">Snapshot · EAT</span><span class="mono">Sun 8 Nov · {{nowClock}}</span></div>
+<button class="lightsw" type="button" aria-pressed="{{downStr}}" onClick="{{toggleLights}}"><span class="knob" aria-hidden="true"></span>House lights {{lightsWord}}</button>
+</div>
+</div>
+</header>
+
+<main class="wrap" style="padding-top: 32px; padding-bottom: 72px">
+
+<div class="head-grid">
+<section class="console" aria-labelledby="inc-h">
+<div class="console-head">
+<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="plate">Incident</span><span class="lamp is-amber">Monitoring</span><span class="lamp">P1</span><span class="lamp">Page tier · 1h + 5m</span></div>
+<a class="key" href="Budget.dc.html">← Console wall</a>
+</div>
+<div class="console-body" style="padding: 22px 24px 26px">
+<p class="mono" style="margin: 0; color: var(--ink-2)">RepoLens · scan-success SLO 99.5% over 28 days · dedup key repolens/scan-success/page-1h</p>
+<h1 id="inc-h" style="margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 24px"><span class="cond hero-h" style="font-size: 104px; font-weight: 700; line-height: .9; letter-spacing: .01em">RSV-1042</span><span class="cond" style="font-size: 34px; font-weight: 600; line-height: 1.05; text-transform: uppercase; max-width: 18ch">RepoLens scans failing after Examiner 503s</span></h1>
+<p style="margin: 6px 0 0; max-width: 68ch; font-size: 18px">From 09:41 to 10:11 EAT about 4 in 10 scans failed: the Examiner waited on an overloaded primary model before falling back, and scans hit their 45-second timeout. Reordering the model chain stopped the burn. The alert reset at 10:16; the ticket auto-resolves at 11:16 if it stays quiet.</p>
+</div>
+</section>
+
+<section class="console" aria-labelledby="sla-h">
+<div class="console-head"><span id="sla-h" class="plate">Resolve SLA clock</span><span class="lamp is-white">Response met · 6 m 12 s</span></div>
+<div class="console-body">
+<p class="label" style="margin: 0; color: var(--ink-2)">Resolution due 13:52 EAT · time left</p>
+<div class="drum" role="timer" aria-label="{{slaAria}}">
+<span>{{slaH}}<small>Hours</small></span><span>{{slaM}}<small>Min</small></span><span>{{slaS}}<small>Sec</small></span>
+</div>
+<dl class="kv" style="margin-top: 6px">
+<dt>Ticket opened by</dt><dd>control-room svc token</dd>
+<dt>Assignee</dt><dd>Dior W.</dd>
+<dt>Queue</dt><dd>On-call · portfolio</dd>
+</dl>
+</div>
+</section>
+</div>
+
+<section class="board on-board" style="margin-top: 30px" aria-labelledby="trace-h">
+<div class="board-in">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: baseline">
+<h2 id="trace-h" class="cond" style="margin: 0; font-size: 32px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em">Burn trace · 09:30 to 10:52</h2>
+<p class="mono" style="margin: 0; color: var(--board-mute); font-size: 14px">{{traceReadout}}</p>
+</div>
+<svg viewBox="0 0 1000 330" style="display: block; width: 100%; height: auto; margin-top: 18px; overflow: visible" role="img" aria-label="Burn rate over time on a log scale. The 5-minute burn jumps past 80 times at 09:43; the 1-hour burn crosses the 14.4 times page threshold at 09:52; the 5-minute burn falls back under it at 10:16, resetting the alert.">
+<rect x="{{pageX}}" y="30" width="{{pageW}}" height="300" fill="var(--lamp-amber)" opacity=".16"></rect>
+<text x="{{pageLabelX}}" y="50" fill="var(--board-ink)" font-family="Barlow Condensed" font-weight="600" font-size="15" letter-spacing="1.5">PAGING · BOTH WINDOWS OVER 14.4×</text>
+<line x1="0" y1="{{y1}}" x2="1000" y2="{{y1}}" stroke="var(--board-rule)"></line>
+<line x1="0" y1="{{y10}}" x2="1000" y2="{{y10}}" stroke="var(--board-rule)"></line>
+<line x1="0" y1="{{y100}}" x2="1000" y2="{{y100}}" stroke="var(--board-rule)"></line>
+<line x1="0" y1="{{y144}}" x2="1000" y2="{{y144}}" stroke="var(--lamp-amber)" stroke-width="2" stroke-dasharray="8 5"></line>
+<text x="4" y="{{y144l}}" fill="var(--board-ink)" font-family="Share Tech Mono" font-size="13">14.4× page threshold</text>
+<text x="4" y="{{y1l}}" fill="var(--board-mute)" font-family="Share Tech Mono" font-size="12">1×</text>
+<text x="4" y="{{y100l}}" fill="var(--board-mute)" font-family="Share Tech Mono" font-size="12">100×</text>
+<polyline points="{{p5}}" fill="none" stroke="var(--board-mute)" stroke-width="1.5" stroke-linejoin="round"></polyline>
+<polyline points="{{p60}}" fill="none" stroke="var(--board-ink)" stroke-width="3.5" stroke-linejoin="round"></polyline>
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="12">
+<line x1="{{p.x}}" y1="22" x2="{{p.x}}" y2="330" stroke="var(--board-ink)" stroke-width="{{p.lw}}" stroke-dasharray="2 4" opacity="{{p.op}}"></line>
+<rect x="{{p.rx}}" y="{{p.ry}}" width="26" height="20" fill="{{p.fill}}" stroke="var(--board-ink)" stroke-width="1.5"></rect>
+<text x="{{p.x}}" y="{{p.ty}}" text-anchor="middle" fill="{{p.tc}}" font-family="Share Tech Mono" font-size="13">{{p.n}}</text>
+</sc-for>
+</svg>
+<div class="mono" style="display: flex; justify-content: space-between; color: var(--board-mute); font-size: 12px; margin-top: 4px"><span>09:30</span><span>10:00</span><span>10:30</span><span>10:52</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 10px; color: var(--board-mute); font-size: 13px">
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-ink)" stroke-width="3.5"></line></svg> 1-hour burn (long window)</span>
+<span><svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--board-mute)" stroke-width="1.5"></line></svg> 5-minute burn (short window)</span>
+<span>Numbered pins match the loop below; select an entry to find it on the trace</span>
+</div>
+</div>
+</section>
+
+<div class="body-grid">
+<section aria-labelledby="loop-h">
+<h2 id="loop-h" class="cond" style="margin: 0 0 14px; font-size: 32px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em">Loop · everything that happened</h2>
+<ol class="loop">
+<sc-for list="{{events}}" as="e" hint-placeholder-count="12">
+<li class="ev {{e.cls}}">
+<button class="ev-btn" type="button" aria-pressed="{{e.pressed}}" onClick="{{e.pick}}">
+<span class="pin" aria-hidden="true">{{e.n}}</span>
+<span class="mono ev-time" style="font-size: 15px">{{e.time}}</span>
+<span class="ev-text"><span class="src">{{e.src}}</span>{{e.text}}</span>
+<span class="ev-meta">{{e.meta}}</span>
+</button>
+</li>
+</sc-for>
+</ol>
+<p class="mono" style="margin: 14px 0 0 60px; color: var(--ink-2); font-size: 14px">Next · 11:16 auto-resolve if quiet for 60 min · postmortem draft assembled on close</p>
+</section>
+
+<aside style="display: flex; flex-direction: column; gap: 26px">
+<section class="console" aria-labelledby="ctx-h">
+<div class="console-head"><span id="ctx-h" class="plate">At fire · 09:52</span></div>
+<div class="console-body">
+<dl class="kv">
+<dt>Error ratio, 1 h</dt><dd>7.54%</dd>
+<dt>Error ratio, 5 m</dt><dd>40.0%</dd>
+<dt>Burn, 1 h / 5 m</dt><dd>15.1× / 80×</dd>
+<dt>Budget left then</dt><dd>45.7%</dd>
+<dt>Budget left now</dt><dd>41.8%</dd>
+<dt>Would have run out in</dt><dd>20 h 20 m</dd>
+<dt>Scans failed</dt><dd>61 of 152</dd>
+</dl>
+</div>
+</section>
+<section class="console" aria-labelledby="ev-h">
+<div class="console-head"><span id="ev-h" class="plate">Evidence</span><span class="lamp is-amber">Gate armed</span></div>
+<div class="console-body">
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+<li><a class="mono" href="#trace-h">trace 4bf92f…e21a · examiner.generate 503 · 20.0 s</a></li>
+<li><a class="mono" href="#trace-h">trace 9c01d7…77b0 · scan timeout 45.0 s</a></li>
+<li><a class="mono" href="#trace-h">grafana · repolens / scan-success</a></li>
+</ul>
+<p style="margin: 0; font-size: 15px">No deploys in the last 24 h. The only change was the env flag at 10:11. Deploys to RepoLens stay blocked until the budget is back over 45% or a PR carries the <span class="mono">emergency-fix</span> label.</p>
+</div>
+</section>
+</aside>
+</div>
+
+<section class="console pm" style="margin-top: 34px" aria-labelledby="pm-h">
+<div class="console-head">
+<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><span class="plate">Postmortem</span><h2 id="pm-h" class="cond" style="margin: 0; font-size: 26px; font-weight: 600; text-transform: uppercase">Draft for Dior to edit</h2></div>
+<span class="lamp {{pmCls}}">{{pmState}}</span>
+</div>
+<div class="console-body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 8px 36px; padding: 6px 24px 24px">
+<div>
+<h3>Summary</h3>
+<p>For 30 minutes on Sunday morning about 40% of RepoLens scans failed. The Examiner kept trying an overloaded primary model for 20 seconds before falling back, so scans ran past their timeout.</p>
+<h3>Impact</h3>
+<p>61 of 152 scans failed between 09:41 and 10:11 EAT. 6.1% of the 28-day error budget was spent, which armed the deploy gate. No data was lost.</p>
+<h3>Root cause · to be confirmed</h3>
+<p class="tbc">Primary model returned bursts of 503 in our region; the 20 s per-attempt timeout plus one retry exceeded the 45 s scan budget. [Confirm against the provider’s status history before publishing.]</p>
+</div>
+<div>
+<h3>What went well</h3>
+<p>The 09:43 short-window spike did not page on its own. The page fired once the hour agreed, and the short window reset the alert five minutes after the fix.</p>
+<h3>Action items</h3>
+<div class="check"><input id="a1" type="checkbox" checked><label for="a1">Model order moved to an env flag (done during incident)</label></div>
+<div class="check"><input id="a2" type="checkbox"><label for="a2">Fall back on the first 503 and cap primary attempts at 6 s · Dior · 15 Nov</label></div>
+<div class="check"><input id="a3" type="checkbox"><label for="a3">Track provider 503 rate as an informational SLI on the Examiner</label></div>
+<div class="check"><input id="a4" type="checkbox"><label for="a4">Chaos drill: force primary 503s in staging and confirm the page fires and resets</label></div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px">
+<button class="key" type="button" aria-pressed="{{reviewedStr}}" onClick="{{toggleReviewed}}">{{reviewWord}}</button>
+<button class="key" type="button">Edit in Markdown</button>
+</div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-2)">Drafted from 12 loop entries, ticket notes and the GitHub deploy log. Never published automatically.</p>
+</div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"lights":{"editor":"enum","options":["auto","up","down"],"default":"auto"},"$preview":{"width":1440,"height":2600}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = { sysDark: dark, override: null, sel: 3, reviewed: false, mounted: Date.now(), now: Date.now() };
+  }
+  componentDidMount() { var self = this; this.timer = setInterval(function () { self.setState({ now: Date.now() }); }, 1000); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  pad(n) { return (n < 10 ? '0' : '') + n; }
+  r(t) { if (t >= 581 && t < 611) return 0.40; if (t >= 611 && t < 624) return 0.02; return 0.0025; }
+  burn(t, w) { var s = 0; for (var x = t - w; x < t; x++) s += this.r(x); return s / w / 0.005; }
+  renderVals() {
+    var self = this, st = this.state;
+    var p = this.props.lights || 'auto';
+    var down = st.override !== null ? st.override : (p === 'down' ? true : (p === 'up' ? false : st.sysDark));
+    var T0 = 570, T1 = 652;
+    var X = function (t) { return ((t - T0) / (T1 - T0) * 1000).toFixed(1); };
+    var Y = function (b) { var v = (Math.log(Math.max(b, 0.1)) / Math.LN10 + 1) / 3; return (330 - v * 300).toFixed(1); };
+    var p5 = [], p60 = [];
+    for (var t = T0; t <= T1; t++) { p5.push(X(t) + ',' + Y(this.burn(t, 5))); p60.push(X(t) + ',' + Y(this.burn(t, 60))); }
+    var evs = [
+      [581.3, '09:41:20', 'Probe', 'Fixture scan of tiny-repo failed: the Examiner got a 503 from the primary model.', 'trace 4bf92f…e21a', true],
+      [583, '09:43:00', 'Engine', '5-minute burn hits 32×, but the 1-hour burn is only 1.9×. Alert stays pending; a blip would end here.', 'state pending', false],
+      [591.5, '09:52:00', 'Engine', '1-hour burn reaches 14.4× while the 5-minute is at 80×. Page tier fires.', 'state firing · key repolens/scan-success/page-1h', true],
+      [591.6, '09:52:03', 'Resolve', 'RSV-1042 created with SLO context, burn rates, budget left and trace links. SLA clock starts: respond 30 m, resolve 4 h.', 'POST /api/tickets 201', false],
+      [591.7, '09:52:05', 'Telegram', 'Page delivered to Dior’s phone.', 'webhook 200', false],
+      [596.2, '09:56:10', 'GitHub', 'Deploy gate armed: RepoLens budget 44.9% is under the 45% floor.', 'check budget-gate · failing', false],
+      [598.2, '09:58:12', 'Dior', 'Acknowledged from Telegram. Response SLA met in 6 m 12 s.', 'ack', false],
+      [604.7, '10:04:40', 'Dior', 'Provider status shows elevated 503s on the primary model. Our chain waits 20 s on it before falling back.', 'internal note', false],
+      [611, '10:11:00', 'Dior', 'Set EXAMINER_MODEL_ORDER=flash,pro. Env flag only, no deploy.', 'config change', true],
+      [616, '10:16:00', 'Engine', '5-minute burn drops to 4×. The short window resets the alert; ticket moved to Monitoring.', 'state resolved · ticket note added', true],
+      [641, '10:41:00', 'Engine', 'Slow-burn tier (6 h and 30 m) clears.', 'tier page-6h resolved', false],
+      [648.5, '10:48:30', 'Probe', 'Cold start: woke in 34 s, inside the 50 s window. Logged as cold_start, not counted.', 'probe cold_start', false]
+    ];
+    var events = evs.map(function (e, i) {
+      return { n: i + 1, time: e[1], src: e[2], text: e[3], meta: e[4], cls: e[5] ? 'is-key' : '', pressed: st.sel === i ? 'true' : 'false', pick: function () { self.setState({ sel: i }); } };
+    });
+    var lastX = -100, row = 0;
+    var pins = evs.map(function (e, i) {
+      var x = parseFloat(X(e[0]));
+      row = (x - lastX < 30) ? row + 1 : 0; lastX = x;
+      var ry = row * 22, on = st.sel === i;
+      return { n: i + 1, x: x.toFixed(1), rx: (x - 13).toFixed(1), ry: ry, ty: ry + 15, fill: on ? 'var(--board-ink)' : 'var(--board)', tc: on ? 'var(--board)' : 'var(--board-ink)', lw: on ? 2 : 1, op: on ? 1 : 0.45 };
+    });
+    var s = evs[st.sel];
+    var traceReadout = '#' + (st.sel + 1) + ' ' + s[1] + ' · 1 h ' + this.burn(Math.floor(s[0]), 60).toFixed(1) + '× · 5 m ' + this.burn(Math.floor(s[0]), 5).toFixed(1) + '×';
+    // SLA: snapshot 10:52:00 EAT, due 13:52:03 EAT => 3h 00m 03s left at mount
+    var left = Math.max(0, 10803 - Math.floor((st.now - st.mounted) / 1000));
+    var h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60), sec = left % 60;
+    var snap = 652 * 60 + Math.floor((st.now - st.mounted) / 1000);
+    return {
+      lights: down ? 'down' : 'up', downStr: down ? 'true' : 'false', lightsWord: down ? 'down' : 'up',
+      toggleLights: function () { self.setState({ override: !down }); },
+      nowClock: this.pad(Math.floor(snap / 3600)) + ':' + this.pad(Math.floor(snap % 3600 / 60)) + ':' + this.pad(snap % 60),
+      slaH: this.pad(h), slaM: this.pad(m), slaS: this.pad(sec),
+      slaAria: 'Resolution due in ' + h + ' hours ' + m + ' minutes',
+      p5: p5.join(' '), p60: p60.join(' '),
+      pageX: X(591.5), pageW: (parseFloat(X(616)) - parseFloat(X(591.5))).toFixed(1), pageLabelX: (parseFloat(X(591.5)) + 8).toFixed(1),
+      y1: Y(1), y10: Y(10), y100: Y(100), y144: Y(14.4), y144l: (parseFloat(Y(14.4)) - 6).toFixed(1), y1l: (parseFloat(Y(1)) - 6).toFixed(1), y100l: (parseFloat(Y(100)) + 16).toFixed(1),
+      pins: pins, events: events, traceReadout: traceReadout,
+      reviewedStr: st.reviewed ? 'true' : 'false', reviewWord: st.reviewed ? 'Reviewed ✓' : 'Mark reviewed',
+      toggleReviewed: function () { self.setState({ reviewed: !st.reviewed }); },
+      pmState: st.reviewed ? 'Reviewed · not published' : 'Draft · not published', pmCls: st.reviewed ? 'is-white' : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

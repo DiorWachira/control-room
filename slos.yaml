@@ -1,0 +1,85 @@
+# Control Room: SLOs as code.
+# Each SLI is good events / valid events. Burn rate = error ratio / (1 - objective).
+# Queries are PromQL templates; $window is replaced with a Prometheus range (5m, 1h, 6h, 3d, 28d).
+# They are only used when PROMETHEUS_URL is set; without it the engine runs the built-in replay.
+
+window_days: 28
+
+# Multi-window, multi-burn-rate tiers (Google SRE Workbook, "Alerting on SLOs", table 5-8).
+# Both windows must exceed the threshold for the tier to fire.
+tiers:
+  - id: page-1h
+    name: Fast burn
+    severity: page
+    long: 1h
+    short: 5m
+    threshold: 14.4   # 2% of a 30-day budget in 1 hour
+  - id: page-6h
+    name: Slow burn
+    severity: page
+    long: 6h
+    short: 30m
+    threshold: 6      # 5% in 6 hours
+  - id: ticket-3d
+    name: Ticket
+    severity: ticket
+    long: 3d
+    short: 6h
+    threshold: 1      # 10% in 3 days
+
+services:
+  - id: resolve
+    name: Resolve
+    callsign: DESK
+    description: Service desk · Next.js on Vercel, Neon Postgres
+    slos:
+      - id: api-availability
+        name: Tickets load and save
+        objective: 0.999
+        deploy_floor: 0.25
+        error_query: sum(increase(http_server_requests_total{service="resolve",code=~"5.."}[$window]))
+        valid_query: sum(increase(http_server_requests_total{service="resolve"}[$window]))
+      - id: api-latency
+        name: Pages respond in 400 ms (p95)
+        objective: 0.99
+        deploy_floor: 0.25
+        error_query: sum(increase(http_server_duration_seconds_count{service="resolve"}[$window])) - sum(increase(http_server_duration_seconds_bucket{service="resolve",le="0.4"}[$window]))
+        valid_query: sum(increase(http_server_duration_seconds_count{service="resolve"}[$window]))
+
+  - id: repolens
+    name: RepoLens
+    callsign: SCAN
+    description: Repo examiner · Render free tier, Gemini with fallback
+    cold_start_window_s: 50
+    slos:
+      - id: scan-success
+        name: Scans finish
+        objective: 0.995
+        deploy_floor: 0.45
+        # cold_start outcomes are excluded from both good and valid events.
+        error_query: sum(increase(probe_runs_total{service="repolens",outcome="error"}[$window]))
+        valid_query: sum(increase(probe_runs_total{service="repolens",outcome!="cold_start"}[$window]))
+      - id: examiner-fallback
+        name: Examiner fallback rate
+        objective: 0.90
+        informational: true   # shown, never pages
+        error_query: sum(increase(llm_fallback_total{service="repolens"}[$window]))
+        valid_query: sum(increase(llm_requests_total{service="repolens"}[$window]))
+
+  - id: jobbridge
+    name: JobBridge
+    callsign: MATCH
+    description: Job matching · FastAPI, Postgres, Neo4j on a VM
+    slos:
+      - id: match-latency
+        name: Match reasons in 2.5 s
+        objective: 0.95
+        deploy_floor: 0.25
+        error_query: sum(increase(explanation_latency_seconds_count{service="jobbridge"}[$window])) - sum(increase(explanation_latency_seconds_bucket{service="jobbridge",le="2.5"}[$window]))
+        valid_query: sum(increase(explanation_latency_seconds_count{service="jobbridge"}[$window]))
+      - id: auth-availability
+        name: Sign-in works
+        objective: 0.999
+        deploy_floor: 0.25
+        error_query: sum(increase(http_server_requests_total{service="jobbridge",route="/auth/login",code=~"5.."}[$window]))
+        valid_query: sum(increase(http_server_requests_total{service="jobbridge",route="/auth/login"}[$window]))

@@ -1,0 +1,39 @@
+# Error-budget deploy gate. Use from Resolve, RepoLens and JobBridge deploy workflows:
+#
+#   - uses: DiorWachira/control-room/.github/actions/budget-gate@main
+#     with:
+#       service: repolens
+#       control-room-url: ${{ vars.CONTROL_ROOM_URL }}
+#
+# Fails the job when any of the service's SLOs is under its deploy floor, unless the
+# pull request carries the "emergency-fix" label.
+name: Error-budget deploy gate
+description: Blocks deploys when Control Room says the service's error budget is under its floor
+inputs:
+  service:
+    description: Service id from slos.yaml (resolve, repolens, jobbridge)
+    required: true
+  control-room-url:
+    description: Base URL of the Control Room engine
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Ask Control Room
+      shell: bash
+      env:
+        SERVICE: ${{ inputs.service }}
+        BASE: ${{ inputs.control-room-url }}
+        LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+      run: |
+        set -euo pipefail
+        body=$(curl -fsS --get "${BASE%/}/budget/${SERVICE}" --data-urlencode "labels=${LABELS}")
+        echo "$body" | jq .
+        allow=$(echo "$body" | jq -r .allow)
+        reason=$(echo "$body" | jq -r .reason)
+        echo "### Error-budget gate: ${SERVICE}" >> "$GITHUB_STEP_SUMMARY"
+        echo "${reason}" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$allow" != "true" ]; then
+          echo "::error title=Error budget gate::${reason}"
+          exit 1
+        fi

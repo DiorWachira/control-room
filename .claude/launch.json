@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "control-room",
+      "runtimeExecutable": "C:\\dev\\Control Room\\engine\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "controlroom.api:app", "--app-dir", "C:\\dev\\Control Room\\engine", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}
