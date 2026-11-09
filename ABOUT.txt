@@ -1,0 +1,21 @@
+Control Room
+============
+
+Live site: https://diorwachira.github.io/control-room/
+Source:    https://github.com/DiorWachira/control-room
+
+Control Room is the on-call desk for my live apps. Every 15 minutes it probes seven of my
+deployed projects (Resolve, RepoLens, Sunrise Showtime, Get2theMoney, Seed Mind, MetaMorph and
+Context Profiler) and gives each one an error budget. A burn-rate engine, built on the Google SRE
+Workbook's multi-window alerts, watches how fast each budget is being spent. When a budget burns
+too fast, it opens an incident, pages me on Telegram and keeps a timeline. When the incident
+closes, it drafts a blameless postmortem. A deploy gate blocks risky releases while a budget is
+under its floor.
+
+The site has three screens, styled as a 1960s mission control room:
+  - Status:   the live public board, with one lamp per app and a 91-day history strip.
+  - Budgets:  a console wall that replays a real outage from 8 November minute by minute
+              (draining budget tanks, burn meters, master caution, the deploy-gate switch).
+  - RSV-1042: that outage's incident page: SLA clock, burn trace, timeline and postmortem draft.
+
+First visit? Take the guided tour from the invitation, or press ? anywhere for the help drawer.
