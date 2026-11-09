@@ -260,4 +260,5 @@ They stay here because Control Room's brief asked for them; don't reuse them els
             (30 engine tests). Guide card -> pointer bubbles with measured placement, nav step
             (12 steps), scroll-settle fix. Fixed 375 px overflow on the incident page (loop
             entries slid in from off-screen). Playwright e2e (9). Static demo export +
-            GitHub Pages workflow; Dockerfile. Pushed to github.com/DiorWachira/control-room.
+            GitHub Pages workflow; Dockerfile. Publishing to github.com/DiorWachira/control-room
+            (public, Pages) is waiting on the owner's go-ahead.
