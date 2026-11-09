@@ -66,7 +66,7 @@ export function App() {
         {route.name === "missing" && <NotFound path={route.path} />}
       </main>
       <footer className="wrap mono muted" style={{ fontSize: 13, paddingBottom: 40 }}>
-        Control Room · built and on call: Dior Wachira, Nairobi · engine replay of Sun 8 Nov 2026 until live telemetry is wired
+        Control Room · built and on call: Dior Wachira, Nairobi · status board: live probes of seven apps · budget wall and RSV-1042: engine replay of Sun 8 Nov 2026
       </footer>
       <Invite g={g} />
       <GuideLayer g={g} />

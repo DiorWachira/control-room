@@ -37,13 +37,20 @@ def classify(ok: bool, latency_s: float, *, slow_threshold_s: float = 10.0, wake
 
 
 def http_probe(service: str, journey: str, url: str, *, method: str = "GET", body: dict | None = None,
-               timeout_s: float = 60.0, expect_status: int = 200, **classify_kw) -> ProbeResult:
+               timeout_s: float = 60.0, expect_status: int = 200, expect_text: str | None = None,
+               **classify_kw) -> ProbeResult:
+    """One request. With expect_text, the body must contain it: a 200 from the wrong app,
+    a parked domain or an error page that returns 200 still counts as an error."""
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "User-Agent": "control-room-probe/0.1"})
+    req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "User-Agent": "control-room-probe/0.2 (+https://github.com/DiorWachira/control-room)"})
     t0 = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as r:
             ok, detail = r.status == expect_status, f"HTTP {r.status}"
+            if ok and expect_text:
+                text = r.read(512_000).decode("utf-8", "replace")
+                if expect_text not in text:
+                    ok, detail = False, f"HTTP {r.status}, expected text missing"
     except urllib.error.HTTPError as e:
         ok, detail = False, f"HTTP {e.code}"
     except Exception as e:  # timeouts, DNS, resets

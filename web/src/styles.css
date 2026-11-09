@@ -113,11 +113,18 @@ button { font: inherit; color: inherit; }
 .tick.is-burning { background: var(--lamp-amber); height: 44px; }
 .tick.is-outage { background: var(--lamp-red); height: 44px; outline: 1px solid var(--lamp-red-ink); outline-offset: -1px; }
 .tick.is-cold { background: transparent; box-shadow: inset 0 0 0 1px var(--board-mute); }
+/* Days before probing began: an empty slot with only a floor line, never painted as nominal. */
+.tick.is-nodata { background: transparent; box-shadow: inset 0 -3px 0 var(--board-rule); }
 .tick:hover, .tick.is-on { background: var(--board-ink); }
 .strip-scale { display: flex; justify-content: space-between; gap: 10px; color: var(--board-mute); font: 400 12px var(--f-mono); margin-top: 6px; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--board-mute); font-size: 13px; align-items: center; }
 .sw { display: inline-block; width: 10px; height: 16px; vertical-align: -3px; margin-right: 6px; background: var(--tick); }
-.sw.is-burning { background: var(--lamp-amber); } .sw.is-outage { background: var(--lamp-red); } .sw.is-cold { background: transparent; box-shadow: inset 0 0 0 1px var(--board-mute); }
+.sw.is-burning { background: var(--lamp-amber); } .sw.is-outage { background: var(--lamp-red); } .sw.is-cold { background: transparent; box-shadow: inset 0 0 0 1px var(--board-mute); } .sw.is-nodata { background: transparent; box-shadow: inset 0 -3px 0 var(--board-rule); }
+.signal-lost { margin: 18px 0 0; padding: 10px 14px; border: 2px dashed var(--board-mute); color: var(--board-ink); max-width: 70ch; }
+.signal-lost .label { margin-right: 10px; }
+.svc-link { color: var(--board-mute); text-underline-offset: 3px; overflow-wrap: anywhere; } .svc-link:hover { color: var(--board-ink); }
+.ai-pass { margin-top: 14px; padding: 4px 0 2px 16px; border-left: 4px solid var(--console-deep); }
+.ai-pass ul { margin: 6px 0 0; padding-left: 20px; }
 .log { list-style: none; margin: 0; padding: 0; }
 .log li { display: grid; grid-template-columns: 170px 110px minmax(0, 1fr) 120px; gap: 6px 20px; padding: 16px 0; border-top: 1px solid var(--rule); align-items: baseline; }
 

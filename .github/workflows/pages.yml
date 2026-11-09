@@ -1,24 +1,33 @@
-name: Deploy demo to GitHub Pages
+name: Probe and deploy
 
-# The public demo is the 8 November replay, frozen to JSON by the real engine at build time
-# and served as a static site. Live mode (Prometheus) needs the engine running on the VM.
+# Every 15 minutes: probe the apps in probes.yaml, rebuild the engine from the probe history,
+# deliver due Telegram pages (and read acks back), and publish the status site to GitHub Pages.
+# On push it rebuilds the site from the existing history without probing.
+#
+# Optional repository secrets: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (pages and acks),
+# ANTHROPIC_API_KEY (postmortem rewrite), HEALTHCHECK_URL (dead-man switch, e.g. healthchecks.io).
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # push the probe log to the probe-data branch
   pages: write
   id-token: write
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false  # never cut a probe round off halfway through writing the log
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROBE: ${{ github.event_name != 'push' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,20 +38,65 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Freeze the replay
-        working-directory: engine
+
+      - name: Fetch the probe history
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          pip install -e .
-          python -m controlroom.export ../web/.static/api
-      - name: Build the static site
+          if git ls-remote --exit-code --heads origin probe-data >/dev/null; then
+            git clone --quiet --depth 1 --branch probe-data \
+              "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" probe-data
+          else
+            mkdir -p probe-data/runs
+          fi
+
+      - name: Probe, rebuild, notify, freeze
+        working-directory: engine
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          pip install --quiet -e ".[llm]"
+          if [ "$PROBE" = "true" ]; then
+            python -m controlroom.export ../web/.static/api --probe-data ../probe-data --probe --notify
+          else
+            python -m controlroom.export ../web/.static/api --probe-data ../probe-data
+          fi
+
+      - name: Save the probe history
+        if: env.PROBE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: probe-data
+        run: |
+          # One commit, force-pushed: the day files are the history; the branch never grows.
+          rm -rf .git
+          git init --quiet -b probe-data
+          git config user.name "DiorWachira"
+          git config user.email "njoroge.wachira@strathmore.edu"
+          printf '# Probe history\n\nWritten by the probe-and-deploy workflow every 15 minutes. runs/YYYY-MM-DD.jsonl holds one line per probe (UTC day); notify.json, acks.json and postmortems.json hold pager state, Telegram acks and cached postmortem rewrites.\n' > README.md
+          git add -A
+          git commit --quiet -m "Probe history $(date -u +%FT%TZ)"
+          git push --quiet --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" probe-data
+
+      - name: Build the site
         working-directory: web
         run: |
           npm ci
           npm run build:static
           cp dist/index.html dist/404.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
+
+      - name: Dead-man switch
+        if: env.PROBE == 'true'
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HEALTHCHECK_URL" ]; then curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null; fi
 
   deploy:
     needs: build

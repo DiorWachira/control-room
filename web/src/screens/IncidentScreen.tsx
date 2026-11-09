@@ -49,6 +49,7 @@ function Detail({ inc }: { inc: IncidentDetail }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <span className="plate">Incident</span><Lamp colour={statusColour}>{inc.status}</Lamp><Lamp>{inc.priority}</Lamp>
               <Lamp>{inc.class === "page" ? "Page tier" : "Ticket tier"}</Lamp>
+              {inc.replay && <Lamp>Replay · 8 Nov</Lamp>}
             </div>
             <a className="key" href="#/budgets">← Console wall</a>
           </div>
@@ -171,6 +172,15 @@ function Detail({ inc }: { inc: IncidentDetail }) {
             <h3>Summary</h3><p>{inc.postmortem.summary}</p>
             <h3>Impact</h3><p>{inc.postmortem.impact}</p>
             <h3>Root cause · to be confirmed</h3><p className="tbc">{inc.postmortem.root_cause}</p>
+            {inc.postmortem.refined && (
+              <div className="ai-pass">
+                <p className="label" style={{ margin: 0 }}>{inc.postmortem.refined.label} · {inc.postmortem.refined.model}</p>
+                <h3>Rewritten summary</h3><p>{inc.postmortem.refined.summary}</p>
+                <h3>Probable cause</h3><p className="tbc">{inc.postmortem.refined.probable_cause}</p>
+                {inc.postmortem.refined.evidence.length > 0 && <ul>{inc.postmortem.refined.evidence.map((e, k) => <li key={k}>{e}</li>)}</ul>}
+                {inc.postmortem.refined.follow_ups.length > 0 && <><h3>Suggested follow-ups</h3><ul>{inc.postmortem.refined.follow_ups.map((e, k) => <li key={k}>{e}</li>)}</ul></>}
+              </div>
+            )}
           </div>
           <div>
             <h3>Action items</h3>

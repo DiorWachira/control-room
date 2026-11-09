@@ -5,9 +5,9 @@
 export type Step = { hash: string; target: string; title: string; body: string };
 
 export const STEPS: Step[] = [
-  { hash: "#/", target: "nav", title: "Three screens", body: "Status is the public board. Budgets is the console wall where the replay runs. RSV-1042 is the incident from 8 November. The guide will walk you through each one." },
-  { hash: "#/", target: "board", title: "The big board", body: "The public status page. One headline, one lamp per app. Lamps are the only colour in the room: white is fine, amber means budget is burning, red means breach." },
-  { hash: "#/", target: "strips", title: "91 days, one bar each", body: "Raised amber days burned budget; raised red days hit page level. Hover a bar, or focus the strip and use ← →, to read a day." },
+  { hash: "#/", target: "nav", title: "Three screens", body: "Status is the live public board for seven of Dior's apps. Budgets is the console wall, replaying a real outage from 8 November. RSV-1042 is that outage's incident. The guide walks you through each one." },
+  { hash: "#/", target: "board", title: "The big board", body: "The public status page, fed by real probes every 15 minutes. One headline, one lamp per app. Lamps are the only colour in the room: white is fine, amber means budget is burning, red means breach." },
+  { hash: "#/", target: "strips", title: "91 days, one bar each", body: "Raised amber days burned budget; raised red days hit page level; empty slots are days before probing began. Hover a bar, or focus the strip and use ← →, to read a day." },
   { hash: "#/", target: "cold", title: "Waking is not down", body: "RepoLens sleeps on a free tier. A slow first answer inside the 50 s wake window is logged as a cold start and never spends budget." },
   { hash: "#/budgets", target: "controls", title: "Replay a real morning", body: "The wall replays 8 November minute by minute, computed by the engine. Hold, Replay and Lamp test are here. Master caution flashes on anything new; press it to acknowledge." },
   { hash: "#/budgets", target: "tank", title: "The budget tank", body: "Each console's tank is what's left of a 28-day error budget. The flow ticks speed up with the burn. The dashed line is the deploy-gate floor." },

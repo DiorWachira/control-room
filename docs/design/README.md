@@ -17,6 +17,9 @@ with the matching image, and re-capture the images when the look changes on purp
 | `10-guide-bubble-light.png` | Guide CHECK 3: bubble below the 91-day strips, caret up | up | 1440 |
 | `11-guide-bubble-dark.png` | Guide CHECK 9: bubble above the deploy gate, caret down | down | 1440 |
 | `12-guide-bubble-mobile.png` | Guide CHECK 6 docked to the bottom edge | up | 375 |
+| `13-status-live-light.png` | Live status board (probe mode), full page | up | 1440 |
+| `14-status-live-dark.png` | Live status board | down | 1440 |
+| `15-status-live-mobile.png` | Live status board | up | 375 |
 
 ## What to look for
 - **Lamps are the only colour.** White = nominal or advisory, amber = budget burning, red = breach or
@@ -37,6 +40,8 @@ shot(){ "$CH" --headless=new --disable-gpu --hide-scrollbars --user-data-dir="C:
 shot 03-budgets-light 1440,2700 "http://localhost:8000/?lights=up&guide=off#/budgets" 30000
 ```
 
+The live board images (13 to 15) come from `node web/scripts/shot-live.mjs docs/design` against a
+probe-mode build (`python -m controlroom.export ../web/.static/api --probe-data DIR --probe`).
 The guide images (09 to 12) come from `node web/scripts/capture.mjs docs/design` (run from the
 repo root) against `npx vite preview --mode static --port 4174` after `npm run build:static`.
 

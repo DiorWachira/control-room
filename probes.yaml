@@ -1,0 +1,81 @@
+# Control Room: what the live status board watches today.
+#
+# Until OpenTelemetry is wired into each app (roadmap M1–M2), the public board is fed by
+# synthetic probes: a GitHub Actions job requests each app every 15 minutes, twice, and
+# appends the results to the probe-data branch. The real engine evaluates that history with
+# the burn-rate tiers from slos.yaml (tiers are never defined here).
+#
+# SLI "Site answers" = probe attempts that return the expected status (and text) within
+# slow_threshold_s ÷ attempts that were not cold starts. Objective 98%: a single failed run
+# never pages; two failed runs in a row do (≈ 25× over 1 h and 30 m).
+#
+# The Prometheus queries are what the same SLO becomes once probes push
+# probe_runs_total over OTLP (M2); the probe runner itself does not need them.
+
+window_days: 28
+probe:
+  interval: 15m        # cron cadence; short windows look back at least lookback
+  lookback: 30m        # windows shorter than this read the last 30 minutes (sparse samples)
+  attempts: 2          # requests per app per run
+  attempt_gap_s: 10
+  slow_threshold_s: 10
+  idle_after: 15m      # no success for this long = the app may be asleep (cold-start rules)
+
+services:
+  - id: resolve
+    name: Resolve
+    callsign: DESK
+    description: Service desk · Next.js on Vercel, Neon Postgres
+    probe: { url: "https://resolve-service-desk.vercel.app/", expect_text: "Resolve" }
+    slos: &site
+      - id: site-up
+        name: Site answers
+        objective: 0.98
+        deploy_floor: 0.25
+        error_query: sum(increase(probe_runs_total{service="$service",outcome="error"}[$window]))
+        valid_query: sum(increase(probe_runs_total{service="$service",outcome!="cold_start"}[$window]))
+
+  - id: repolens
+    name: RepoLens
+    callsign: SCAN
+    description: Repo examiner · Render free tier (sleeps), Gemini with fallback
+    cold_start_window_s: 50
+    probe: { url: "https://repolens-klm1.onrender.com/", expect_text: "RepoLens", timeout_s: 60 }
+    slos: *site
+
+  - id: sunrise
+    name: Sunrise Showtime
+    callsign: DAWN
+    description: Lakers command centre · FastAPI + Next.js on an Azure VM
+    probe: { url: "https://sunrise-showtime.southafricanorth.cloudapp.azure.com/api/health" }
+    slos: *site
+
+  - id: get2themoney
+    name: Get2theMoney
+    callsign: CHAMA
+    description: Chama share ledger · Next.js on Vercel
+    probe: { url: "https://get2themoney.vercel.app/", expect_text: "Get2theMoney" }
+    slos: *site
+
+  - id: seedmind
+    name: Seed Mind
+    callsign: BAO
+    description: Bao la Kiswahili engine and coach · GitHub Pages
+    probe: { url: "https://diorwachira.github.io/seed-mind/", expect_text: "Seed Mind" }
+    slos: *site
+
+  - id: metamorph
+    name: MetaMorph
+    callsign: MORPH
+    description: Metamorphic testing for LLM apps · demo on GitHub Pages
+    probe: { url: "https://diorwachira.github.io/metamorph/", expect_text: "Metamorph" }
+    slos: *site
+
+  - id: context-profiler
+    name: Context Profiler
+    callsign: BENCH
+    description: Prompt flame graph · demo on GitHub Pages
+    probe: { url: "https://diorwachira.github.io/context-profiler/", expect_text: "Context Profiler" }
+    slos: *site
+
+# Not watched yet: JobBridge (no public deployment; telemetry lands with M1).

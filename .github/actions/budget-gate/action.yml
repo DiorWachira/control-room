@@ -1,21 +1,23 @@
-# Error-budget deploy gate. Use from Resolve, RepoLens and JobBridge deploy workflows:
+# Error-budget deploy gate. Use from the app repos' deploy workflows:
 #
 #   - uses: DiorWachira/control-room/.github/actions/budget-gate@main
 #     with:
-#       service: repolens
-#       control-room-url: ${{ vars.CONTROL_ROOM_URL }}
+#       service: seedmind                    # an id from probes.yaml (or slos.yaml in live mode)
 #
-# Fails the job when any of the service's SLOs is under its deploy floor, unless the
-# pull request carries the "emergency-fix" label.
+# Fails the job when any of the service's SLOs is under its deploy floor, unless the pull
+# request carries the "emergency-fix" label. By default it reads the public site, which the
+# probe workflow refreshes every 15 minutes (budget/<service>.json). Point control-room-url at a
+# running engine to ask it live instead (GET /budget/<service>?labels=...).
 name: Error-budget deploy gate
 description: Blocks deploys when Control Room says the service's error budget is under its floor
 inputs:
   service:
-    description: Service id from slos.yaml (resolve, repolens, jobbridge)
+    description: Service id (resolve, repolens, sunrise, get2themoney, seedmind, metamorph, context-profiler)
     required: true
   control-room-url:
-    description: Base URL of the Control Room engine
-    required: true
+    description: Base URL of the Control Room site or engine
+    required: false
+    default: https://diorwachira.github.io/control-room
 runs:
   using: composite
   steps:
@@ -27,13 +29,28 @@ runs:
         LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
       run: |
         set -euo pipefail
-        body=$(curl -fsS --get "${BASE%/}/budget/${SERVICE}" --data-urlencode "labels=${LABELS}")
+        base="${BASE%/}"
+        if body=$(curl -fsS --retry 3 "${base}/budget/${SERVICE}.json" 2>/dev/null); then
+          source="static site"
+        else
+          body=$(curl -fsS --retry 3 --get "${base}/budget/${SERVICE}" --data-urlencode "labels=${LABELS}")
+          source="engine"
+        fi
         echo "$body" | jq .
         allow=$(echo "$body" | jq -r .allow)
         reason=$(echo "$body" | jq -r .reason)
-        echo "### Error-budget gate: ${SERVICE}" >> "$GITHUB_STEP_SUMMARY"
-        echo "${reason}" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$allow" != "true" ] && [[ ",${LABELS}," == *",emergency-fix,"* ]]; then
+          allow=true
+          reason="Override: emergency-fix label (${reason})"
+        fi
+        {
+          echo "### Error-budget gate: ${SERVICE}"
+          echo "${reason}"
+          echo ""
+          echo "_Source: ${source}, reading at $(echo "$body" | jq -r .at)_"
+        } >> "$GITHUB_STEP_SUMMARY"
         if [ "$allow" != "true" ]; then
           echo "::error title=Error budget gate::${reason}"
           exit 1
         fi
+        echo "Gate open: ${reason}"

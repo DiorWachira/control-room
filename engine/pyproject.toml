@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+llm = ["anthropic>=1.0"]   # optional: postmortem rewrite pass (M5)
 
 [build-system]
 requires = ["setuptools>=68"]

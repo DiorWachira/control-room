@@ -18,6 +18,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: pytest -q
+      - name: Chaos drill (real HTTP app, simulated clock)
+        run: python -m controlroom.drill
 
   web:
     runs-on: ubuntu-latest
@@ -62,3 +64,31 @@ jobs:
         with:
           name: playwright-traces
           path: web/test-results
+
+  infra:
+    # Validates the telemetry stack with the real binaries (the same pinned images compose runs).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose file
+        run: GRAFANA_ADMIN_PASSWORD=ci docker compose -f infra/docker-compose.yml config -q
+      - name: OpenTelemetry Collector config
+        run: docker run --rm -v "$PWD/infra/otel-collector.yaml:/c.yaml:ro" otel/opentelemetry-collector-contrib:0.111.0 validate --config=/c.yaml
+      - name: Prometheus config
+        run: docker run --rm --entrypoint promtool -v "$PWD/infra/prometheus.yml:/p.yml:ro" prom/prometheus:v2.55.1 check config /p.yml
+      - name: Tempo config
+        run: docker run --rm -v "$PWD/infra/tempo.yaml:/t.yaml:ro" grafana/tempo:2.6.1 -config.file=/t.yaml -config.verify=true
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the engine image
+        run: docker build -t controlroom:ci .
+      - name: Smoke test (replay mode)
+        run: |
+          docker run -d --name cr -p 8000:8000 controlroom:ci
+          for i in $(seq 1 30); do curl -fsS localhost:8000/api/health && break; sleep 2; done
+          curl -fsS localhost:8000/api/status | jq -e '.services | length == 3'
+          curl -fsS localhost:8000/ | grep -q "Control Room"
+          docker rm -f cr

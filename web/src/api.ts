@@ -28,13 +28,14 @@ export interface Replay {
   start: string; end: string; step_s: number; frames: Frame[];
   history: Record<string, { at: string; remaining: number }[]>; incidents: Incident[];
 }
-export interface Day { date: string; status: "nominal" | "burning" | "outage" | "cold"; burn: number; note: string }
+export interface Day { date: string; status: "nominal" | "burning" | "outage" | "cold" | "nodata"; burn: number; note: string }
 export interface StatusService {
-  id: string; name: string; description: string; state: "nominal" | "degraded" | "outage";
+  id: string; name: string; description: string; state: "nominal" | "degraded" | "outage" | "nosignal";
   uptime_90d: number | null; days: Day[]; objectives: { name: string; objective: number }[];
+  last_probe?: string | null; url?: string | null;
 }
 export interface Status {
-  mode: string; at: string; services: StatusService[];
+  mode: "replay" | "probes" | "live"; at: string; services: StatusService[]; since?: string | null; interval?: string;
   active: (Incident & { last: TimelineEvent | null })[];
   history: { id: string; service: string; title: string; start: string; end: string | null; status: string; detail: string }[];
 }
@@ -43,7 +44,11 @@ export interface IncidentDetail extends Incident {
   gate: { floor: number; armed: boolean }; trace: { at: string; h1: number | null; m5: number | null }[];
   timeline: TimelineEvent[];
   context: NonNullable<Incident["context"]>;
-  postmortem: { summary: string; impact: string; root_cause: string; timeline: string[]; action_items: { text: string; done: boolean }[]; markdown: string; published: boolean };
+  replay?: boolean;
+  postmortem: {
+    summary: string; impact: string; root_cause: string; timeline: string[]; action_items: { text: string; done: boolean }[]; markdown: string; published: boolean;
+    refined?: { summary: string; probable_cause: string; evidence: string[]; follow_ups: string[]; model: string; label: string };
+  };
 }
 
 export class ApiError extends Error {
@@ -52,7 +57,7 @@ export class ApiError extends Error {
 
 // The public demo (GitHub Pages) has no engine: `VITE_STATIC=1` builds read the replay that
 // `python -m controlroom.export` froze into dist/api/*.json at build time.
-export const STATIC = import.meta.env.VITE_STATIC === "1";
+export const STATIC = import.meta.env?.VITE_STATIC === "1";
 export const apiUrl = (path: string) =>
   STATIC ? `${import.meta.env.BASE_URL}${path.replace(/^\//, "").split("?")[0]}.json` : path;
 
@@ -87,8 +92,16 @@ export const pct = (x: number | null | undefined, dp = 1) => (x == null ? "—" 
 export const rate = (x: number | null | undefined) => (x == null ? "—" : x >= 10 ? `${x.toFixed(1)}×` : `${x.toFixed(2)}×`);
 export function duration(seconds: number | null): string {
   if (seconds == null) return "outlasts window";
-  const h = seconds / 3600;
-  if (h >= 48) return `${Math.floor(h / 24)} d ${Math.floor(h % 24)} h`;
-  return `${Math.floor(h)} h ${pad(Math.floor((h % 1) * 60))} m`;
+  // Whole minutes first: (h % 1) * 60 on a float turned 10 h 38 m into "10 h 37 m".
+  const mins = Math.floor(seconds / 60), h = Math.floor(mins / 60);
+  if (h >= 48) return `${Math.floor(h / 24)} d ${h % 24} h`;
+  return `${h} h ${pad(mins % 60)} m`;
 }
 export const objective = (o: number) => `${+(o * 100).toFixed(2)}%`;
+/** "4 min ago", "3 h ago", "2 d ago" from two instants. */
+export function ago(iso: string, nowMs: number): string {
+  const m = Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60000));
+  if (m < 60) return `${m} min ago`;
+  if (m < 48 * 60) return `${Math.floor(m / 60)} h ago`;
+  return `${Math.floor(m / 1440)} d ago`;
+}

@@ -108,11 +108,15 @@ From 09:41 EAT, 40% of scans fail.
 GitHub Actions in app repos ────┘ GET /budget/{service}?labels=…  (budget-gate action)
 ```
 
-**Modes** (decided at startup in `api.State`):
+**Modes** (decided at startup in `api.State`; the replay behind `/api/replay` and RSV-10xx is always computed):
 - **replay** (default, no env): `scenario.run()` warms the engine from 6 Nov, then evaluates
   every minute from 09:30 to 10:52 EAT on 8 Nov. "Now" is fixed at 10:52 EAT.
+- **probes** (`CONTROLROOM_PROBE_DATA` set; what the public site runs): `live.build()` rebuilds the
+  engine from `runs/*.jsonl` in 5-minute steps (ProbeLogSource over `probes.yaml`). The GitHub
+  Actions cron does probe → rebuild → `notify.run()` → `refine_postmortems()` → export every 15 min.
 - **live** (`PROMETHEUS_URL` set): a background thread calls `engine.evaluate(utcnow)` every
-  `EVAL_INTERVAL_S` (60) seconds. Resolve/Telegram adapters switch on from env vars.
+  `EVAL_INTERVAL_S` (60) seconds, saves state to SQLite (`store.py`) and pings `HEALTHCHECK_URL`.
+  Resolve/Telegram adapters switch on from env vars.
 
 ---
 
@@ -127,8 +131,14 @@ GitHub Actions in app repos ────┘ GET /budget/{service}?labels=…  (b
 | `incidents.py` | Incidents, tickets, pages, timeline, SLA | `IncidentManager.handle/record/tick`, `Incident`, `TimelineEvent`, `PRIORITY`, `SLA` | one open incident per (service, slo, class); ticket tier suppressed for 3 d after a page on the same SLO |
 | `engine.py` | Orchestration per evaluation | `Engine.evaluate(now)`, `Engine.run()`, `Annotation` | call in increasing time order; returns the snapshot dict |
 | `adapters.py` | Outbound integrations | `TicketSink`, `Pager`, `MemorySink(reserved=…)`, `ResolveSink`, `WebhookPager`, `from_env()` | Resolve endpoint is a proposal (docs/resolve-api.md); creates send `Idempotency-Key`; 5xx and network errors retried with backoff, 4xx never |
-| `probes.py` | Synthetic checks | `classify()`, `http_probe()` | cold_start only if was_idle and latency ≤ wake window |
-| `postmortem.py` | Deterministic draft | `draft()` → summary, impact, root cause (TBC), timeline, actions, markdown | `published` is always False |
+| `probes.py` | Synthetic checks | `classify()`, `http_probe(expect_text=…)` | cold_start only if was_idle and latency ≤ wake window |
+| `probelog.py` | Probe history | `ProbeRecord`, `read_log`, `append`, `prune`, `ProbeLogSource`, `day_strip`, `uptime` | windows < 30 min read 30 min; a window answers once history covers min(window, 1 day) |
+| `probe_runner.py` | One probe round | `run_round(cfg, log_dir)` | apps in parallel; idle 15 min → cold-start rules on the first attempt |
+| `live.py` | Probe mode | `build(cfg, data_dir, now)`, `ProbeSink` (CR ids), `RebuildPager` | deterministic; never sends anything |
+| `notify.py` | Pages and acks | `run(engine, data_dir)`, `Telegram` | each page once, never older than 2 h; acks from getUpdates → `acks.json` |
+| `store.py` | Live-mode state | `Store.save/load` (SQLite) | a restart never re-opens a ticket |
+| `drill.py` | Chaos drill | `run()` | local app only; 7 acceptance checks |
+| `postmortem.py` | Postmortem | `draft()`; `refine()` → Claude rewrite (claude-opus-5-5, JSON schema, refusal fallback) | `published` is always False; refine returns None on any failure |
 | `status.py` | Public view | `public_state`, `day_strip`, `uptime` | uptime uses the strictest (availability) SLO |
 | `scenario.py` | Replay data | `profiles()`, `ANNOTATIONS`, `HISTORY`, `COLD_DAYS`, `run()`, `eat()` | only human/external facts are hand-written |
 | `api.py` | HTTP | FastAPI `app`, `State` | replay endpoints 404 in live mode |
@@ -152,7 +162,7 @@ firing ──(all tiers of its class reset)──► monitoring ──(60 quiet 
 
 All times are ISO 8601 UTC; the UI renders EAT (UTC+3). Rates are floats (`15.1` = 15.1×).
 
-`GET /api/health` → `{ok, mode: "replay"|"live", at, last_error}`
+`GET /api/health` → `{ok, mode: "replay"|"probes"|"live", at, last_error}` (+ `last_probe`, `stale` in probes mode)
 
 `GET /api/budgets` → snapshot:
 ```jsonc
@@ -178,7 +188,7 @@ All times are ISO 8601 UTC; the UI renders EAT (UTC+3). Rates are floats (`15.1`
 `{start, end, step_s: 60, frames: [snapshot…] (83), history: {serviceId: [{at, remaining}] (29 daily points)}, incidents: [Incident with timeline]}`
 
 `GET /api/status` →
-`{mode, at, services: [{id, name, description, state: "nominal|degraded|outage", uptime_90d, days: [{date, status: "nominal|burning|outage|cold", burn, note}] (91), objectives}], active: [Incident + last], history: [{id, service, title, start, end, status, detail}]}`
+`{mode, at, services: [{id, name, description, state: "nominal|degraded|outage|nosignal", uptime_90d, days: [{date, status: "nominal|burning|outage|cold|nodata", burn, note}] (91), objectives, last_probe?, url?}], active: [Incident + last], history: [...], since?, interval?}`
 
 `GET /api/incidents` → list of Incident summaries.
 `GET /api/incidents/{id}` → Incident with `timeline`, `context` (at fire), plus
@@ -188,6 +198,7 @@ Incident shape:
 `{id, service, slo, class: "page"|"ticket", title, priority: "P1"|"P2"|"P3", status, opened_at, resolved_at, quiet_since, firing: [tierIds], sla: {respond_by, resolve_by, responded_at}}`
 
 `GET /budget/{service}?labels=a,b` → `{service, allow, reason, slos: [{slo, remaining, floor, armed}], at}`.
+The static site serves the same answer (no labels) at `budget/{service}.json`; the action applies `emergency-fix` itself.
 `allow` is false when any SLO is under its floor, unless `labels` contains `emergency-fix`.
 
 TypeScript mirrors of all shapes live in `web/src/api.ts`; keep them in sync.
@@ -291,6 +302,7 @@ CSS scroll-driven animations (incident loop entries slide in via `animation-time
 | `test_deploy_gate_arms_under_the_floor` | gate flips when remaining < floor |
 | `test_replay_of_8_november` | exact replay times (09:52 fire, 10:16 reset, 11:40 resolve), suppression, ack |
 | `test_api.py` | endpoints, lamp states, 83 frames, 404s, gate override |
+| `test_live.py` | probes.yaml + tiers, log/prune/lookback/warm-up, runner cold starts, rebuild pages once with stable ids, notify once + acks on the timeline + resolved once, old incidents never paged late, Telegram shapes, SQLite restart mid-fire, LLM refine (schema, fallback, refusal), chaos drill, API in probe mode |
 | `test_adapters.py` | PrometheusSource on recorded responses (vector, empty, NaN, scalar, error); Resolve idempotency key survives retries, 4xx not retried; pager backoff on 429, fail-fast on 400 |
 
 Web: Playwright e2e in `web/e2e/` against the static build (`npx playwright test`; first run

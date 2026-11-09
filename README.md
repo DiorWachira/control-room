@@ -9,17 +9,26 @@ postmortem. A GitHub Action blocks risky deploys while a budget is under its flo
 
 > "My side projects have SLOs, burn-rate alerts and postmortems, and my own service desk pages me."
 
-**Live demo:** https://diorwachira.github.io/control-room/ (the 8 November replay, frozen by the
-real engine at build time; take the guide or press `?`).
+**Live:** https://diorwachira.github.io/control-room/ · the status board probes seven of my deployed
+apps every 15 minutes (Resolve, RepoLens, Sunrise Showtime, Get2theMoney, Seed Mind, MetaMorph,
+Context Profiler) and the real engine computes their error budgets. The budget wall and
+RSV-1042 replay a real outage from 8 November. Take the guide, or press `?`.
 
-![Guide bubble on the status board](docs/design/10-guide-bubble-light.png)
+![Live status board](docs/design/13-status-live-light.png)
+
+| Guide bubble | Budget wall (replay) | Phone |
+|---|---|---|
+| ![](docs/design/10-guide-bubble-light.png) | ![](docs/design/04-budgets-dark.png) | ![](docs/design/15-status-live-mobile.png) |
 
 ## Status
 Working today (replay mode): the burn-rate engine, alert lifecycle, incident manager, deploy gate
 API, postmortem draft, and the web UI (status board, budget console wall, incident detail, guide).
-Also: the telemetry stack as code (`infra/`), Resolve and Telegram adapters with idempotency and
-retries, Playwright e2e and a GitHub Pages deploy.
-Not yet: real telemetry flowing, the Resolve endpoint, live probes. See `roadmap.txt`.
+Live: synthetic probes → probe log → engine → Pages every 15 minutes, Telegram pages with an
+Acknowledge button (acks read back onto the timeline), NO SIGNAL / SIGNAL LOST when data stops,
+an LLM postmortem rewrite (Claude, cached, never published), a chaos drill in CI, SQLite state
+for the Prometheus mode, and the telemetry stack as code (`infra/`, validated in CI).
+Not yet: OpenTelemetry metrics from the apps (JobBridge deferred), Resolve's incident endpoint,
+and the deploy gate wired into each app's workflow. See `roadmap.txt`.
 
 ## Run it
 
@@ -48,13 +57,23 @@ cd ../web && npx playwright test     # builds --mode static and serves it on :41
 ```
 
 ```bash
+# live probe mode locally
+cd engine && .venv/Scripts/python -m controlroom.probe_runner ../probe-data/runs
+CONTROLROOM_PROBE_DATA=../probe-data .venv/Scripts/python -m uvicorn controlroom.api:app --port 8000
+.venv/Scripts/python -m controlroom.drill   # chaos drill: 7 checks against a throwaway local app
+```
+
+Optional repository secrets for the cron: `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (pages and acks),
+`ANTHROPIC_API_KEY` (postmortem rewrite), `HEALTHCHECK_URL` (dead-man switch).
+
+```bash
 # telemetry backbone (M1), on the VM
 GRAFANA_ADMIN_PASSWORD=... docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml --profile live up -d engine   # once apps send data
 ```
 
 ## How it works
-1. Probes and OpenTelemetry count good and valid events per SLI (`slos.yaml`).
+1. Probes (today, `probes.yaml`) and OpenTelemetry (M1–M2, `slos.yaml`) count good and valid events per SLI.
 2. Every minute the engine asks for error ratios over 5m, 30m, 1h, 6h, 3d and 28d.
 3. Burn rate = error ratio ÷ (1 − objective). Tiers from the SRE Workbook: page at 14.4×
    (1h and 5m), page at 6× (6h and 30m), ticket at 1× (3d and 6h). Both windows must agree.
@@ -65,6 +84,7 @@ docker compose -f infra/docker-compose.yml --profile live up -d engine   # once 
 ## Layout
 ```
 slos.yaml                 SLOs and alert tiers as code
+probes.yaml               what the live board watches (probe targets; tiers come from slos.yaml)
 infra/                    collector, prometheus (35d), tempo, grafana; docker compose
 Dockerfile                engine + web image
 engine/controlroom/       config, sources, burnrate, alerts, incidents, engine, probes,

@@ -2,6 +2,29 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-11-09 · The live board runs on synthetic probes until OpenTelemetry lands
+Instrumenting each app is work in each app's repo (M1–M2, JobBridge deferred). Meanwhile a GitHub
+Actions cron probes seven deployed apps every 15 minutes (`probes.yaml`) and the real engine
+evaluates that history. No server is needed: the log lives on a `probe-data` branch (one commit,
+force-pushed, so the branch never grows), and the engine is rebuilt deterministically from the
+log every run, which also makes ticket ids stable (`CR-<CALLSIGN>-<MMDD>-<HHMM>`). Side effects
+are separated from the rebuild: `notify.py` sends each page once and never sends one older than
+two hours. Telegram acks are read by polling `getUpdates`, because there is no webhook endpoint.
+
+## 2026-11-09 · Probe SLO 98%, 30-minute lookback, one-day warm-up
+Probes are sparse (2 requests per app per 15 min), so a 5-minute window would usually be empty
+and no page could fire; windows shorter than 30 minutes read the last 30. At 98%, one failed
+run (2 of 8 attempts in the hour = 12.5×) does not page and two in a row (25×) do. The chaos
+drill showed that on a fresh history a single blip looked like a 3-day burn and opened a ticket,
+so a window only answers once the history covers min(window, 1 day).
+
+## 2026-11-09 · LLM postmortem pass: Claude, cached, never published
+`postmortem.refine()` sends the deterministic draft to `claude-opus-5-5` with a JSON schema
+(summary, probable cause, evidence, follow-ups) and the server-side refusal fallback. It runs once
+per resolved incident (cached in `postmortems.json`) and shows next to the draft, labelled
+"AI rewrite · to be confirmed". Without `ANTHROPIC_API_KEY`, or on any error or refusal, the
+deterministic draft stands alone.
+
 ## 2026-11-09 · Telemetry backend: self-hosted on the JobBridge VM
 OpenTelemetry Collector + Prometheus + Tempo + Grafana in Docker Compose (`infra/`), not Grafana
 Cloud's free tier. The free tier keeps metrics for 14 days and every SLO here is a 28-day window,

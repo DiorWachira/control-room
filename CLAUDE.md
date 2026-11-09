@@ -9,8 +9,10 @@ Start here, in this order:
 4. `DECISIONS.md` — why things are the way they are.
 
 Rules:
-- Engine: `cd engine && .venv/Scripts/python -m pytest -q` must stay green. The maths lives in
-  `controlroom/burnrate.py`; never change thresholds in code, change `slos.yaml`.
+- Engine: `cd engine && .venv/Scripts/python -m pytest -q` must stay green, and so must
+  `python -m controlroom.drill`. The maths lives in `controlroom/burnrate.py`; never change
+  thresholds in code, change `slos.yaml`. The live board's targets live in `probes.yaml`.
+- Live site: https://diorwachira.github.io/control-room/ (pages.yml probes and redeploys every 15 min).
 - Web: `cd web && npm run build` must pass (tsc strict). No UI or chart libraries; SVG by hand.
 - Design tokens are in `web/src/styles.css` (`:root` and `[data-lights="down"]`). Amber means
   "budget burning" and nothing else; red means breach/outage only.
