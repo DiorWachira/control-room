@@ -13,6 +13,7 @@ web/dist/
 .env
 .env.*
 !.env.example
+!web/.env.static
 .DS_Store
 Thumbs.db
 
@@ -23,3 +24,8 @@ web/*.tsbuildinfo
 /agentacl/
 /context-profiler/
 /receipt-index/
+
+# Static demo build and e2e output
+web/.static/
+web/test-results/
+web/playwright-report/

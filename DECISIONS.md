@@ -2,6 +2,27 @@
 
 Short records of choices that are not obvious from the code. Newest first.
 
+## 2026-11-09 · Telemetry backend: self-hosted on the JobBridge VM
+OpenTelemetry Collector + Prometheus + Tempo + Grafana in Docker Compose (`infra/`), not Grafana
+Cloud's free tier. The free tier keeps metrics for 14 days and every SLO here is a 28-day window,
+so budgets would be computed from half the data. Self-hosting costs nothing extra (the VM already
+runs JobBridge), keeps 35 days (28 plus a week of slack) and keeps the PromQL in `slos.yaml`
+portable. Ops load is one compose file with pinned images; Prometheus, Tempo and Grafana only
+listen on localhost or the internal network. The collector copies `service.name` onto a `service`
+label so the selectors in `slos.yaml` work unchanged.
+
+## 2026-11-09 · Public demo is a static replay on GitHub Pages
+The 8 November replay is deterministic, so `python -m controlroom.export` freezes every API answer
+to JSON at build time and `vite build --mode static` reads those files (`VITE_STATIC=1`). The demo
+is free, never sleeps and needs no secrets. Live mode still needs the engine (Dockerfile) on the VM.
+
+## 2026-11-09 · Guide steps are pointer bubbles, not a floating card
+Each CHECK card now points at its panel with a caret, like the coach marks people know from other
+sites. Placement is measured (real bubble height): below, above, right, left, else inside the
+panel's visible part (no caret). On phones (<= 560 px) it docks to the edge away from the panel.
+After a smooth scroll settles the guide re-checks the panel's position and corrects it, because
+fast Next presses can overlap two smooth scrolls. A first step now introduces the three screens.
+
 ## 2026-11-09 · Monitoring starts when every page tier is clear
 The fast-burn tier reset at 10:16 on 8 Nov, but the slow-burn tier (6 h + 30 m) stayed firing
 until 10:40. The incident therefore moves to Monitoring at 10:40, not 10:16, and auto-resolves
@@ -32,8 +53,7 @@ closed before the replay are written by hand (`controlroom/scenario.py`).
 - Engine: Python 3.11+ (FastAPI, PyYAML, httpx). The burn-rate evaluator is our own code; the
   point of the project is the maths and lifecycle, not a vendor's alerting.
 - Web: Vite + React + TypeScript, no UI or chart library. Charts are hand-written SVG.
-- Backend for telemetry: **not chosen yet** (Prometheus + Tempo + Grafana on the VM vs Grafana
-  Cloud free tier). Record the choice here in M1.
+- Backend for telemetry: self-hosted Prometheus + Tempo + Grafana (see the entry above).
 
 ## 2026-11-09 · Design: "House Lights"
 A 1960s operations room: a shared big board over a row of sage consoles. Lamps are the only

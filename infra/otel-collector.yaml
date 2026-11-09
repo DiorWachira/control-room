@@ -1,0 +1,47 @@
+# OpenTelemetry Collector: OTLP in, Prometheus (remote write) + Tempo out.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+  batch: {}
+  # slos.yaml selects series by a `service` label. OTel puts the app name in the resource
+  # attribute service.name, so copy it onto every data point (resolve, repolens, jobbridge).
+  transform/service-label:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["service"], resource.attributes["service.name"]) where attributes["service"] == nil
+
+exporters:
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    resource_to_telemetry_conversion:
+      enabled: false
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+extensions:
+  health_check: {}
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/service-label, batch]
+      exporters: [prometheusremotewrite]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]

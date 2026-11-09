@@ -33,5 +33,6 @@ The SLA clock starts at creation.
 `PATCH /api/integrations/control-room/tickets/{id}` `{"status": "open" | "monitoring" | "resolved"}` → `204`
 
 ## Idempotency
-Send `Idempotency-Key: <service>/<slo>/<class>/<opened_at>` on create, so a retried request
-never opens a second ticket. (Not yet sent by `ResolveSink`; see roadmap M4.)
+`ResolveSink` sends `Idempotency-Key: <service>/<slo>/<class>/<opened_at>` on create and reuses
+it when it retries a 5xx or a network error, so Resolve must return the existing ticket's id
+for a key it has seen. The create body also carries `class` and `opened_at`.

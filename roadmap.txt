@@ -1,6 +1,6 @@
 CONTROL ROOM · ROADMAP AND HANDOFF
 ==================================
-Last updated: 2026-11-09 (end of the first build session)
+Last updated: 2026-11-09 (second session: M1 infra, adapters, e2e, guide bubbles, Pages deploy)
 Owner: Dior Wachira (DiorWachira). Only contributor; no co-author trailers on commits.
 
 How to use this file
@@ -44,7 +44,7 @@ Acceptance criteria from the spec (all covered by engine/tests/test_alerting.py)
 Runs end to end in REPLAY MODE: the engine evaluates the built-in 8 November 2026 scenario
 (RepoLens Examiner outage) minute by minute and the UI shows the result.
 
-engine/ (Python, FastAPI)                                    21 tests passing
+engine/ (Python, FastAPI)                                    30 tests passing
   controlroom/config.py      loads slos.yaml (services, SLOs, tiers, deploy floors)
   controlroom/sources.py     MetricSource protocol; ProfileSource (replay/tests);
                              PrometheusSource (instant PromQL queries, untested live)
@@ -64,6 +64,7 @@ engine/ (Python, FastAPI)                                    21 tests passing
   controlroom/api.py         /api/health, /api/status, /api/budgets, /api/replay,
                              /api/incidents, /api/incidents/{id}, /budget/{service};
                              serves web/dist at /
+  controlroom/export.py      freezes the replay API to JSON for the static demo build
 
 web/ (Vite 8, React 19, TypeScript strict; no UI/chart libraries)
   screens/StatusScreen.tsx   public big board: lamps, 91-day strips (hover + arrow keys),
@@ -75,15 +76,23 @@ web/ (Vite 8, React 19, TypeScript strict; no UI/chart libraries)
                              guarded deploy-gate override (lift cover, then emergency-fix)
   screens/IncidentScreen.tsx incident detail: SLA countdown drum, burn trace with numbered
                              pins linked to the loop, context at fire, gate, postmortem draft
-  Guide.tsx                  opt-in first-run guide (11 checklist steps across all screens,
-                             spotlight ring, keys <- -> Esc, focus trap, aria-live) and the
-                             "Flight manual" help drawer (? key): tours, pipeline, glossary
+  Guide.tsx                  opt-in first-run guide: 12 CHECK bubbles across all screens, each
+                             with a caret pointing at a spotlit panel (placement below > above >
+                             right > left > inside; docks top/bottom on phones), keys <- -> Esc,
+                             focus trap, aria-live; and the "Flight manual" help drawer (? key)
+  guideSteps.ts              the STEPS (no imports; e2e reads it)
+  e2e/                       Playwright: guide tour, help drawer, strip readout, replay, gate,
+                             404, 375 px overflow + docked bubble (9 tests, static build)
   components.tsx             Lamp, warm-up (loading), Link lost (error), 404
   styles.css                 design tokens; light "house lights up" / dark "house lights down"
 
 repo
   slos.yaml                          SLOs and tiers as code (PromQL templates per SLI)
-  .github/workflows/ci.yml           pytest + web build
+  .github/workflows/ci.yml           pytest + web build + Playwright e2e
+  .github/workflows/pages.yml        deploys the static demo to GitHub Pages on push to main
+  Dockerfile                         engine + web in one image (healthcheck on /api/health)
+  infra/                             docker-compose: otel-collector, prometheus (35d), tempo,
+                                     grafana, engine (profile "live"); pinned images
   .github/actions/budget-gate/       composite action for the app repos (curl + jq)
   docs/resolve-api.md                endpoint Resolve must add (service token, idempotency)
   DECISIONS.md, README.md, CLAUDE.md, .env.example
@@ -92,8 +101,12 @@ Verified this session: pytest green; tsc + vite build green; screenshots reviewe
 status board, budget wall and incident page in light and dark; 375 px has no horizontal
 overflow; the guide navigates across screens and tracks its target.
 
+Public demo: https://diorwachira.github.io/control-room/ (static replay, no engine behind it).
+
 Not done (be honest in interviews): no real telemetry yet; ResolveSink and PrometheusSource
-have never talked to a live server; no e2e tests; no live probe runner; postmortem has no LLM.
+have only talked to fake servers (recorded fixtures, MockTransport); the infra stack has not
+been started (compose syntax validated only; Docker Desktop was off); no live probe runner;
+postmortem has no LLM; the engine is not hosted anywhere yet.
 
 
 3. RUN IT
@@ -119,18 +132,21 @@ M0  Foundation (this session)                                              [DONE
   [x] Web UI for the three screens, guide, help drawer, light/dark, 375 px
   [x] CI workflow, budget-gate action, docs
 
-M1  Telemetry backbone + JobBridge                                        [NEXT]
-  [ ] Decide backend: self-hosted Prometheus + Tempo + Grafana on the VM (Docker) vs
+M1  Telemetry backbone + JobBridge                                        [IN PROGRESS]
+  [x] Decide backend: self-hosted Prometheus + Tempo + Grafana on the VM (Docker) vs
       Grafana Cloud free tier. Write it in DECISIONS.md (cost, retention >= 28d, ops load).
-  [ ] infra/docker-compose.yml: otel-collector (OTLP in), prometheus (remote-write or
+  [x] infra/docker-compose.yml: otel-collector (OTLP in), prometheus (remote-write or
       scrape the collector), tempo, grafana. Pin image versions. Collector config in
       infra/otel-collector.yaml. Prometheus retention 35d so 28d windows always resolve.
+      Done 2026-11-09. Next: `docker compose up` on the VM, and run `otelcol validate` and
+      `promtool check config` (not run yet: Docker Desktop was off locally).
   [ ] JobBridge (separate PR in its repo, behind OTEL_ENABLED): opentelemetry-python
       auto-instrumentation for FastAPI; histogram explanation_latency_seconds with buckets
       including 2.5; http_server_requests_total with route + code. Pin semconv version.
   [ ] Check the PromQL in slos.yaml against real metric names; fix the yaml, not the code.
-  [ ] Run the engine in live mode against it; add a test that PrometheusSource parses a
-      recorded /api/v1/query response (tests/fixtures/prom_*.json).
+  [ ] Run the engine in live mode against it.
+  [x] Test that PrometheusSource parses recorded /api/v1/query responses
+      (tests/fixtures/prom_*.json: vector, empty, NaN, scalar, error).
   Done when: /api/budgets shows JobBridge numbers from Prometheus and a Grafana board exists.
 
 M2  Resolve + RepoLens instrumentation, synthetic probes
@@ -156,18 +172,21 @@ M3  Engine in production + notifications
       Evaluate every 60 s; alert on the engine itself if evaluations stop (dead-man switch:
       a heartbeat to healthchecks.io or a Telegram message if no eval for 5 min).
   [ ] Telegram bot: create bot, set TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID; message format
-      "[P1] RepoLens ... · RSV-1042 · <link>". Retry with backoff; record failures on the timeline.
+      "[P1] RepoLens ... · RSV-1042 · <link>".
+  [x] Pager retries with backoff (1 s, 2 s) on network errors, 429 and 5xx; a final failure is
+      recorded on the timeline ("page failed"). Tested with MockTransport.
   [ ] Ack from Telegram (inline button -> webhook -> engine records kind="ack").
   [ ] Handle missing data: a window with no valid events returns None today; decide whether
       "no data for 10 min" should raise a probe-lost lamp (likely yes, as an advisory).
 
 M4  Resolve adapter, status page live, deploy gate in the app repos
   [ ] Resolve PR: service account + scoped token + the endpoints in docs/resolve-api.md.
-  [ ] ResolveSink: send Idempotency-Key; tests against a fake server (httpx MockTransport).
+  [x] ResolveSink: send Idempotency-Key (service/slo/class/opened_at), retry 5xx and network
+      errors with the same key, never retry 4xx; tests against MockTransport.
   [ ] Pull human notes back from Resolve ticket notes into the incident timeline (poll every
       minute or a webhook); replaces scenario annotations in live mode.
-  [ ] Public status page deployed (engine serves web/dist; or static web on Vercel calling
-      the engine with CORS). Add caching headers on /api/status.
+  [~] Public demo deployed to GitHub Pages as a static replay (pages.yml). Still to do for
+      live: host the engine (Dockerfile ready), point the page at it, caching on /api/status.
   [ ] Wire budget-gate into each app's deploy workflow; set CONTROL_ROOM_URL repo variable.
       Gate endpoint must be reachable from GitHub runners and must not leak internals.
   Done when: a staging chaos run opens exactly one real Resolve ticket and closes it.
@@ -179,11 +198,12 @@ M5  Postmortems, chaos drill, polish
   [ ] Chaos drill script (scripts/chaos.py) against STAGING copies only: raise 5xx rate,
       add latency, break the LLM key to force fallbacks. Prove page fires and resets, the
       gate blocks a deploy, and one ticket opens and closes. Record a demo video.
-  [ ] Playwright e2e: status strip readout (hover + arrow keys); budget replay reaches the
-      incident strip; master caution ack; gate cover -> override; guide invite -> tour across
-      screens -> Esc -> never shown again; ? opens the help drawer. Mark the guide as seen
-      (localStorage cr.guide.seen=1) in all other tests.
-  [ ] Vitest for web/src/api.ts formatters and Guide step targets (every data-guide exists).
+  [x] Playwright e2e (web/e2e, against the static build): strip readout, replay reaches the
+      incident strip, gate cover -> override, guide invite -> 12-step tour across screens ->
+      Esc -> never shown again, Not now, focus trap, ? help drawer + tour this screen, 404,
+      375 px overflow + docked bubble. Other tests mark cr.guide.seen=1.
+  [ ] e2e for master caution ack.
+  [ ] Vitest for web/src/api.ts formatters. (Guide targets are covered by the e2e tour.)
   [ ] README screenshots (light, dark, 375 px) and an architecture diagram.
 
 
@@ -235,3 +255,9 @@ They stay here because Control Room's brief asked for them; don't reuse them els
             ?guide=off URL params for screenshots. First commit.
             Note: agentacl/, context-profiler/, receipt-index/ at the root are other
             projects' design files kept locally and never committed.
+2026-11-09  M1 infra (compose, collector, prometheus 35d, tempo, grafana) + backend decision;
+            PrometheusSource fixture tests; ResolveSink idempotency + retries; pager backoff
+            (30 engine tests). Guide card -> pointer bubbles with measured placement, nav step
+            (12 steps), scroll-settle fix. Fixed 375 px overflow on the incident page (loop
+            entries slid in from off-screen). Playwright e2e (9). Static demo export +
+            GitHub Pages workflow; Dockerfile. Pushed to github.com/DiorWachira/control-room.

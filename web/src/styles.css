@@ -180,7 +180,7 @@ button { font: inherit; color: inherit; }
 .drum span { display: flex; flex-direction: column; align-items: center; padding: 8px 0 6px; background: var(--board); color: var(--board-ink); border: 2px solid var(--bezel); border-radius: 2px; font: 400 40px/1 var(--f-mono); background-image: linear-gradient(transparent 49%, rgba(0,0,0,.5) 49%, rgba(0,0,0,.5) 51%, transparent 51%); }
 .drum small { font: 600 11px var(--f-display); letter-spacing: .14em; color: var(--board-mute); margin-top: 6px; }
 .body-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; margin-top: 30px; }
-.loop { list-style: none; margin: 0; padding: 0; position: relative; }
+.loop { list-style: none; margin: 0; padding: 0; position: relative; overflow-x: clip; } /* entries slide in from the right; never widen the page */
 .loop::before { content: ""; position: absolute; left: 21px; top: 8px; bottom: 8px; border-left: 2px solid var(--rule); }
 .ev { position: relative; margin: 0 0 6px; }
 .ev-btn { display: grid; grid-template-columns: 44px 96px minmax(0, 1fr); gap: 4px 16px; width: 100%; text-align: left; padding: 12px 14px 12px 0; background: transparent; border: 0; border-top: 1px solid var(--rule); cursor: pointer; align-items: baseline; }
@@ -207,9 +207,21 @@ button { font: inherit; color: inherit; }
 .warm-lamps span:nth-child(2) { animation-delay: .2s; } .warm-lamps span:nth-child(3) { animation-delay: .4s; } .warm-lamps span:nth-child(4) { animation-delay: .6s; } .warm-lamps span:nth-child(5) { animation-delay: .8s; } .warm-lamps span:nth-child(6) { animation-delay: 1s; }
 @keyframes warm { 0% { background: var(--glass); } 30% { background: var(--lamp-white); } }
 
-/* ---- guide (checklist cards) ------------------------------------------- */
+/* ---- guide (checklist bubbles) ----------------------------------------- */
 .veil-ring { position: fixed; z-index: 60; pointer-events: none; border: 3px solid var(--lamp-white); box-shadow: 0 0 0 9999px rgba(8, 10, 6, .62); transition: all .25s ease; }
 .gcard { position: fixed; z-index: 61; width: min(380px, calc(100vw - 32px)); background: var(--board); color: var(--board-ink); border: 2px solid var(--board-mute); border-top: 10px solid var(--lamp-white); border-radius: 2px; box-shadow: 8px 8px 0 var(--bezel); }
+/* The caret: a square notch in the bubble's border colour, turned 45deg, pointing at the panel.
+   Its offset along the edge (--caret) follows the panel's centre. No blur, no glow. */
+.gcard.side-below, .gcard.side-above, .gcard.side-right, .gcard.side-left { animation: cue .22s cubic-bezier(.2, .85, .25, 1) both; }
+.gcaret { position: absolute; width: 18px; height: 18px; background: var(--board); border: 2px solid var(--board-mute); transform: rotate(45deg); }
+.side-below .gcaret { top: -20px; left: calc(var(--caret) - 9px); background: var(--lamp-white); border-color: var(--lamp-white); clip-path: polygon(0 0, 100% 0, 0 100%); }
+.side-above .gcaret { bottom: -11px; left: calc(var(--caret) - 9px); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.side-right .gcaret { left: -11px; top: calc(var(--caret) - 9px); clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.side-left .gcaret { right: -11px; top: calc(var(--caret) - 9px); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.gcard.side-dock { width: auto; }
+@keyframes cue { from { opacity: 0; transform: translateY(6px); } }
+.side-above { animation-name: cue-up !important; }
+@keyframes cue-up { from { opacity: 0; transform: translateY(-6px); } }
 .gcard-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--board-rule); }
 .gcard-body { padding: 14px; }
 .gcard h2 { margin: 0 0 6px; font: 600 24px/1.05 var(--f-display); text-transform: uppercase; }
@@ -254,7 +266,6 @@ button { font: inherit; color: inherit; }
   .ev-btn { grid-template-columns: 44px minmax(0, 1fr); } .ev-btn .ev-time { grid-column: 2; }
   .ev-text, .ev-meta { grid-column: 1 / -1; padding-left: 14px; } .loop::before { display: none; }
   .drum span { font-size: 30px; }
-  .gcard { left: 16px !important; right: 16px; bottom: 16px; top: auto !important; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

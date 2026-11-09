@@ -1,23 +1,13 @@
-// First-run guide as a flight director's checklist: numbered CHECK cards that walk the
-// room, spotlighting one panel at a time. Opt-in (NN/g: forced tutorials hurt), offered once.
+// First-run guide as a flight director's checklist: numbered CHECK bubbles that walk the
+// room, spotlighting one panel at a time and pointing at it with a caret. Opt-in (NN/g:
+// forced tutorials hurt), offered once. Placement: below, above, right, left of the panel,
+// else inside it; on phones the bubble docks to the screen edge away from the panel.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { STEPS, type Step } from "./guideSteps";
 import { navigate, parseHash, store } from "./hooks";
 
-type Step = { hash: string; target: string; title: string; body: string };
+export { STEPS };
 
-export const STEPS: Step[] = [
-  { hash: "#/", target: "board", title: "The big board", body: "The public status page. One headline, one lamp per app. Lamps are the only colour in the room: white is fine, amber means budget is burning, red means breach." },
-  { hash: "#/", target: "strips", title: "91 days, one bar each", body: "Raised amber days burned budget; raised red days hit page level. Hover a bar, or focus the strip and use ← →, to read a day." },
-  { hash: "#/", target: "cold", title: "Waking is not down", body: "RepoLens sleeps on a free tier. A slow first answer inside the 50 s wake window is logged as a cold start and never spends budget." },
-  { hash: "#/budgets", target: "controls", title: "Replay a real morning", body: "The wall replays 8 November minute by minute, computed by the engine. Hold, Replay and Lamp test are here. Master caution flashes on anything new; press it to acknowledge." },
-  { hash: "#/budgets", target: "tank", title: "The budget tank", body: "Each console's tank is what's left of a 28-day error budget. The flow ticks speed up with the burn. The dashed line is the deploy-gate floor." },
-  { hash: "#/budgets", target: "meters", title: "Two windows must agree", body: "The 5-minute bar reacts at once; the 1-hour bar is slow. A tier fires only when both pass the line. That is why a two-minute blip never pages." },
-  { hash: "#/budgets", target: "strip", title: "Incidents slide in", body: "When a page tier fires, Control Room opens a Resolve ticket, pages Dior and the incident slides in from the edge. Its timeline grows as the replay runs." },
-  { hash: "#/budgets", target: "gate", title: "The deploy gate", body: "Below the floor, the GitHub Action fails deploys. To override, lift the cover first, then flip emergency-fix: two moves, so it can't happen by accident." },
-  { hash: "#/incidents/RSV-1042", target: "trace", title: "The burn trace", body: "Long and short windows on a log scale. The amber band is when both were over 14.4×. Numbered pins match the loop below." },
-  { hash: "#/incidents/RSV-1042", target: "postmortem", title: "A draft, never auto-published", body: "When the incident closes, the timeline becomes a blameless postmortem draft with the root cause left for a human to confirm." },
-  { hash: "", target: "guide-key", title: "Reopen any time", body: "This checklist lives behind the Guide key. Press ? anywhere for the help drawer: glossary, keyboard map and how the pipeline works." },
-];
 
 const SEEN = "cr.guide.seen";
 
@@ -49,6 +39,15 @@ export function GuideLayer({ g }: { g: ReturnType<typeof useGuide> }) {
   const card = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
   const s = step == null ? null : steps[step];
+  const [cardSize, setCardSize] = useState({ w: 380, h: 280 });
+
+  // Measure the bubble so placement uses its real height (copy length varies per step).
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (Math.abs(w - cardSize.w) > 1 || Math.abs(h - cardSize.h) > 1) setCardSize({ w, h });
+  });
 
   // Navigate to the step's screen, wait for its target, scroll it under the sticky header.
   useEffect(() => {
@@ -58,11 +57,17 @@ export function GuideLayer({ g }: { g: ReturnType<typeof useGuide> }) {
     waitFor(`[data-guide="${s.target}"]`).then((el) => {
       if (!alive) return;
       if (!el) { setRect(null); return; }
-      const header = (document.querySelector(".overhead") as HTMLElement | null)?.getBoundingClientRect().height ?? 0;
-      const sticky = getComputedStyle(document.querySelector(".overhead") ?? document.body).position === "sticky" ? header : 0;
-      const top = el.getBoundingClientRect().top + window.scrollY - sticky - 24;
+      const top = el.getBoundingClientRect().top + window.scrollY - stickyHeight() - 24;
       window.scrollTo({ top: Math.max(0, top), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-      setTimeout(() => alive && setRect(el.getBoundingClientRect()), 350);
+      // Overlapping smooth scrolls (fast Next presses) can land off target: once settled,
+      // nudge the panel back to just under the header, then spotlight it.
+      setTimeout(() => {
+        if (!alive) return;
+        const off = el.getBoundingClientRect().top - stickyHeight() - 24;
+        const room = document.documentElement.scrollHeight - innerHeight - window.scrollY;
+        if (Math.abs(off) > 4 && (off < 0 ? window.scrollY > 0 : room > 0)) window.scrollBy({ top: off, behavior: "auto" });
+        setRect(el.getBoundingClientRect());
+      }, 450);
     });
     return () => { alive = false; };
   }, [s]);
@@ -105,20 +110,13 @@ export function GuideLayer({ g }: { g: ReturnType<typeof useGuide> }) {
     }
   };
 
-  const pad = 8;
-  const ring = rect ? { left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
-  const vw = window.innerWidth, vh = window.innerHeight, cw = Math.min(380, vw - 32);
-  let pos: React.CSSProperties = { left: (vw - cw) / 2, top: vh / 2 - 120 };
-  if (ring) {
-    const below = ring.top + ring.height + 16, above = ring.top - 16 - 260;
-    const top = below + 260 < vh ? below : above > 0 ? above : Math.max(16, vh - 300);
-    pos = { left: Math.max(16, Math.min(ring.left, vw - cw - 16)), top };
-  }
-
+  const { ring, pos, side, caret } = place(rect, cardSize);
   return (
     <>
       {ring ? <div className="veil-ring" style={ring} aria-hidden="true" /> : <div className="drawer-veil" style={{ zIndex: 60 }} aria-hidden="true" />}
-      <div className="gcard on-board" ref={card} role="dialog" aria-modal="false" aria-labelledby="g-title" onKeyDown={onKey} style={pos}>
+      <div className={`gcard on-board side-${side}`} ref={card} role="dialog" aria-modal="false" aria-labelledby="g-title"
+        onKeyDown={onKey} style={{ ...pos, ["--caret" as string]: `${caret}px` }} data-testid="guide-bubble">
+        {(side === "below" || side === "above" || side === "right" || side === "left") && <span className="gcaret" aria-hidden="true" />}
         <div className="gcard-head">
           <span className="label">Check {step + 1} / {n}</span>
           <button className="xkey" type="button" onClick={close} aria-label="Close guide">×</button>
@@ -139,12 +137,59 @@ export function GuideLayer({ g }: { g: ReturnType<typeof useGuide> }) {
   );
 }
 
+type Side = "below" | "above" | "right" | "left" | "inside" | "dock" | "none";
+const GAP = 18, EDGE = 16, PAD = 8;
+
+// Where the bubble goes, given the target's rect and the bubble's measured size.
+export function place(rect: DOMRect | null, size: { w: number; h: number }) {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const top0 = stickyHeight();
+  const w = size.w, h = size.h;
+  if (!rect) return { ring: null, pos: { left: (vw - w) / 2, top: Math.max(EDGE, (vh - h) / 2) } as React.CSSProperties, side: "none" as Side, caret: 0 };
+  const ring = { left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 };
+  const r = { l: ring.left, t: ring.top, rt: ring.left + ring.width, b: ring.top + ring.height };
+  const cx = (Math.max(r.l, 0) + Math.min(r.rt, vw)) / 2;
+  const cy = (Math.max(r.t, top0) + Math.min(r.b, vh)) / 2;
+  const clampX = (x: number) => Math.max(EDGE, Math.min(x, vw - w - EDGE));
+  const clampY = (y: number) => Math.max(top0 + EDGE, Math.min(y, vh - h - EDGE));
+
+  if (vw <= 560) {
+    // Phones: dock to whichever edge is away from the panel, full width, no caret.
+    const dockTop = cy > vh / 2;
+    return { ring, pos: dockTop ? { left: EDGE, right: EDGE, top: top0 + EDGE } : { left: EDGE, right: EDGE, bottom: EDGE }, side: "dock" as Side, caret: 0 };
+  }
+  if (r.b + GAP + h <= vh - EDGE && r.b > 0) {
+    const left = clampX(cx - w / 2);
+    return { ring, pos: { left, top: r.b + GAP }, side: "below" as Side, caret: Math.max(20, Math.min(cx - left, w - 20)) };
+  }
+  if (r.t - GAP - h >= top0 + EDGE && r.t <= vh) {
+    const left = clampX(cx - w / 2);
+    return { ring, pos: { left, top: r.t - GAP - h }, side: "above" as Side, caret: Math.max(20, Math.min(cx - left, w - 20)) };
+  }
+  if (r.rt + GAP + w <= vw - EDGE) {
+    const top = clampY(cy - h / 2);
+    return { ring, pos: { left: r.rt + GAP, top }, side: "right" as Side, caret: Math.max(20, Math.min(cy - top, h - 20)) };
+  }
+  if (r.l - GAP - w >= EDGE) {
+    const top = clampY(cy - h / 2);
+    return { ring, pos: { left: r.l - GAP - w, top }, side: "left" as Side, caret: Math.max(20, Math.min(cy - top, h - 20)) };
+  }
+  // The panel fills the screen: sit inside its visible part, bottom right.
+  return { ring, pos: { left: clampX(Math.min(r.rt, vw) - w - 24), top: clampY(Math.min(r.b, vh) - h - 24) }, side: "inside" as Side, caret: 0 };
+}
+
+function stickyHeight(): number {
+  const el = document.querySelector<HTMLElement>(".overhead");
+  if (!el || getComputedStyle(el).position !== "sticky") return 0;
+  return el.getBoundingClientRect().bottom;
+}
+
 export function Invite({ g }: { g: ReturnType<typeof useGuide> }) {
   if (!g.invite || g.step != null) return null;
   return (
-    <div className="invite on-board" role="region" aria-label="Guide invitation">
+    <div className="invite on-board" role="region" aria-label="Guide invitation" data-testid="guide-invite">
       <p className="label" style={{ margin: 0, color: "var(--board-mute)" }}>First time in the room?</p>
-      <p style={{ margin: "6px 0 12px" }}>Take the 11-step walk through the consoles. About two minutes.</p>
+      <p style={{ margin: "6px 0 12px" }}>Take the {STEPS.length}-step walk through the screens and consoles. About two minutes.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button className="bkey" type="button" onClick={() => g.start()}>Start</button>
         <button className="bkey" type="button" onClick={g.dismissInvite}>Not now</button>

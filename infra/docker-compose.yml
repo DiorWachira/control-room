@@ -1,0 +1,79 @@
+# Control Room telemetry backbone (M1). Runs on the JobBridge VM next to the engine.
+# Apps send OTLP to the collector; the collector remote-writes metrics to Prometheus and
+# traces to Tempo; the engine queries Prometheus; Grafana is for humans.
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Only the collector's OTLP ports are published beyond localhost. Put Grafana and the engine
+# behind the VM's reverse proxy (or an SSH tunnel); Prometheus and Tempo stay internal.
+name: controlroom
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP (probes push here)
+    depends_on: [prometheus, tempo]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 28-day SLO windows must always resolve, so keep a week of slack.
+      - --storage.tsdb.retention.time=35d
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [prometheus, tempo]
+    restart: unless-stopped
+
+  engine:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      EVAL_INTERVAL_S: "60"
+      RESOLVE_URL: ${RESOLVE_URL:-}
+      RESOLVE_TOKEN: ${RESOLVE_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+    profiles: ["live"]   # start with --profile live once the apps are sending data
+
+volumes:
+  prometheus-data:
+  tempo-data:
+  grafana-data:

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { STATIC } from "./api";
 import type { Load } from "./hooks";
 
 export type LampColour = "" | "white" | "amber" | "red";
@@ -43,7 +44,9 @@ export function Fault({ error, retry, what }: { error: Error; retry?: () => void
         <div className="console-body">
           <p style={{ margin: 0 }}>Control Room could not load {what}. The engine may be asleep or unreachable.</p>
           <p className="mono muted" style={{ margin: 0, fontSize: 14 }}>{error.message}</p>
-          <p className="muted" style={{ margin: 0, fontSize: 14 }}>Start it with <span className="mono">uvicorn controlroom.api:app --port 8000</span> from <span className="mono">engine/</span>.</p>
+          {STATIC
+            ? <p className="muted" style={{ margin: 0, fontSize: 14 }}>This public demo serves a frozen replay of 8 November; that record is not in it.</p>
+            : <p className="muted" style={{ margin: 0, fontSize: 14 }}>Start it with <span className="mono">uvicorn controlroom.api:app --port 8000</span> from <span className="mono">engine/</span>.</p>}
           {retry && <div><button className="key" type="button" onClick={retry}>Try the link again</button></div>}
         </div>
       </div>

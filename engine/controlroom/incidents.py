@@ -171,7 +171,8 @@ class IncidentManager:
         service, slo, tier = ev.key
         priority = PRIORITY[tier]
         title = f"{svc_name} “{slo_name}” SLO burning {fmt_rate(ev.long_rate)} budget"
-        tid = self.sink.open(title, priority, {"service": service, "slo": slo, "tier": tier, "context": context})
+        tid = self.sink.open(title, priority, {"service": service, "slo": slo, "class": klass, "tier": tier,
+                                               "opened_at": ev.at.isoformat(), "context": context})
         inc = Incident(tid, service, slo, klass, title, priority, ev.at, firing={tier}, context=context)
         for pre in self._pre.pop((service, slo), []):
             if ev.at - pre.at <= timedelta(hours=1):

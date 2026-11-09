@@ -47,7 +47,7 @@ export function App() {
       <header className="overhead on-board">
         <div className="wrap overhead-in">
           <a className="mark" href="#/"><MarkLamps />Control Room</a>
-          <nav className="nav" aria-label="Screens">
+          <nav className="nav" aria-label="Screens" data-guide="nav">
             <a href="#/" aria-current={current("status")}>Status</a>
             <a href="#/budgets" aria-current={current("budgets")}>Budgets</a>
             <a href="#/incidents/RSV-1042" aria-current={current("incident")}>RSV-1042</a>

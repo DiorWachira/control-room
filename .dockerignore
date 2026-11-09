@@ -1,0 +1,13 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.egg-info
+web/dist
+web/.static
+web/test-results
+web/playwright-report
+docs
+agentacl
+context-profiler
+receipt-index
+.git

@@ -77,19 +77,27 @@ class ProfileSource:
 class PrometheusSource:
     """Instant queries against the Prometheus HTTP API (`/api/v1/query`)."""
 
-    def __init__(self, base_url: str, timeout: float = 10.0):
+    def __init__(self, base_url: str, timeout: float = 10.0, client=None):
         import httpx  # imported lazily so tests never need a network stack
 
         self.base_url = base_url.rstrip("/")
-        self.client = httpx.Client(timeout=timeout)
+        self.client = client or httpx.Client(timeout=timeout)
 
     def query(self, promql: str, at: datetime) -> float | None:
         r = self.client.get(f"{self.base_url}/api/v1/query", params={"query": promql, "time": at.timestamp()})
         r.raise_for_status()
-        result = r.json()["data"]["result"]
-        if not result:
+        body = r.json()
+        if body.get("status") != "success":
+            raise RuntimeError(f"Prometheus query failed: {body.get('errorType')}: {body.get('error')}")
+        data = body["data"]
+        if data["resultType"] == "scalar":
+            value = data["result"][1]
+        elif not data["result"]:
             return None
-        return float(result[0]["value"][1])
+        else:
+            value = data["result"][0]["value"][1]
+        x = float(value)  # Prometheus sends "NaN" for 0/0
+        return None if x != x else x
 
     def error_ratio(self, service: str, slo: SLO, end: datetime, window: timedelta) -> float | None:
         rng = prom_range(window)

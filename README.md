@@ -9,10 +9,17 @@ postmortem. A GitHub Action blocks risky deploys while a budget is under its flo
 
 > "My side projects have SLOs, burn-rate alerts and postmortems, and my own service desk pages me."
 
+**Live demo:** https://diorwachira.github.io/control-room/ (the 8 November replay, frozen by the
+real engine at build time; take the guide or press `?`).
+
+![Guide bubble on the status board](docs/design/10-guide-bubble-light.png)
+
 ## Status
 Working today (replay mode): the burn-rate engine, alert lifecycle, incident manager, deploy gate
 API, postmortem draft, and the web UI (status board, budget console wall, incident detail, guide).
-Not yet: real telemetry, the Resolve endpoint, live probes. See `roadmap.txt`.
+Also: the telemetry stack as code (`infra/`), Resolve and Telegram adapters with idempotency and
+retries, Playwright e2e and a GitHub Pages deploy.
+Not yet: real telemetry flowing, the Resolve endpoint, live probes. See `roadmap.txt`.
 
 ## Run it
 
@@ -34,6 +41,18 @@ npm run dev
 
 Production-style: `npm run build` in `web/`, then open http://localhost:8000.
 
+```bash
+# static demo + e2e (what GitHub Pages serves)
+cd engine && .venv/Scripts/python -m controlroom.export ../web/.static/api
+cd ../web && npx playwright test     # builds --mode static and serves it on :4174
+```
+
+```bash
+# telemetry backbone (M1), on the VM
+GRAFANA_ADMIN_PASSWORD=... docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml --profile live up -d engine   # once apps send data
+```
+
 ## How it works
 1. Probes and OpenTelemetry count good and valid events per SLI (`slos.yaml`).
 2. Every minute the engine asks for error ratios over 5m, 30m, 1h, 6h, 3d and 28d.
@@ -46,10 +65,13 @@ Production-style: `npm run build` in `web/`, then open http://localhost:8000.
 ## Layout
 ```
 slos.yaml                 SLOs and alert tiers as code
+infra/                    collector, prometheus (35d), tempo, grafana; docker compose
+Dockerfile                engine + web image
 engine/controlroom/       config, sources, burnrate, alerts, incidents, engine, probes,
                           adapters (Resolve, Telegram), postmortem, status, scenario, api
 engine/tests/             acceptance tests (blip, spike, one ticket, slow leak, gate, replay)
-web/src/                  React UI: screens/, Guide.tsx, styles.css (design tokens)
+web/src/                  React UI: screens/, Guide.tsx + guideSteps.ts, styles.css (tokens)
+web/e2e/                  Playwright tests (static build)
 .github/actions/budget-gate/   composite action for the app repos
 docs/resolve-api.md       endpoint Resolve needs to add
 DECISIONS.md              why things are the way they are

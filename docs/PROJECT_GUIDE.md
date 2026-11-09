@@ -88,7 +88,7 @@ From 09:41 EAT, 40% of scans fail.
             └──────┬────────────┬─────────────┬─────────┘
                    │ OTLP       │             │      probes/ (M2) → probe_runs_total
                    ▼            ▼             ▼
-            OpenTelemetry Collector  →  Prometheus (+ Tempo, Grafana)       (M1, not built)
+            OpenTelemetry Collector  →  Prometheus (+ Tempo, Grafana)       (M1: infra/, not running yet)
                                              │ PromQL instant queries
                                              ▼
 ┌──────────────────────────── engine/ (Python, FastAPI) ─────────────────────────────┐
@@ -126,12 +126,13 @@ GitHub Actions in app repos ────┘ GET /budget/{service}?labels=…  (b
 | `alerts.py` | Per-key lifecycle and dedup | `AlertTracker.update()`, `AlertEvent` | emits only on transitions → one ticket per firing |
 | `incidents.py` | Incidents, tickets, pages, timeline, SLA | `IncidentManager.handle/record/tick`, `Incident`, `TimelineEvent`, `PRIORITY`, `SLA` | one open incident per (service, slo, class); ticket tier suppressed for 3 d after a page on the same SLO |
 | `engine.py` | Orchestration per evaluation | `Engine.evaluate(now)`, `Engine.run()`, `Annotation` | call in increasing time order; returns the snapshot dict |
-| `adapters.py` | Outbound integrations | `TicketSink`, `Pager`, `MemorySink(reserved=…)`, `ResolveSink`, `WebhookPager`, `from_env()` | Resolve endpoint is a proposal (docs/resolve-api.md) |
+| `adapters.py` | Outbound integrations | `TicketSink`, `Pager`, `MemorySink(reserved=…)`, `ResolveSink`, `WebhookPager`, `from_env()` | Resolve endpoint is a proposal (docs/resolve-api.md); creates send `Idempotency-Key`; 5xx and network errors retried with backoff, 4xx never |
 | `probes.py` | Synthetic checks | `classify()`, `http_probe()` | cold_start only if was_idle and latency ≤ wake window |
 | `postmortem.py` | Deterministic draft | `draft()` → summary, impact, root cause (TBC), timeline, actions, markdown | `published` is always False |
 | `status.py` | Public view | `public_state`, `day_strip`, `uptime` | uptime uses the strictest (availability) SLO |
 | `scenario.py` | Replay data | `profiles()`, `ANNOTATIONS`, `HISTORY`, `COLD_DAYS`, `run()`, `eat()` | only human/external facts are hand-written |
 | `api.py` | HTTP | FastAPI `app`, `State` | replay endpoints 404 in live mode |
+| `export.py` | Static demo | `export(out)` writes health, status, budgets, replay, incidents, incidents/{id} `.json` | run before `npm run build:static` |
 
 **Timeline event kinds** (`TimelineEvent.kind`): `engine`, `ticket`, `page`, `gate`, `probe`,
 `note`, `ack`, `change`. `key=True` marks the moments the UI highlights (amber pin). `ack` sets
@@ -230,15 +231,21 @@ matches Resolve's history. Past incidents before the replay (`HISTORY`) are stat
   - `IncidentScreen` — SLA drum (counts down from the engine's "now"), burn trace (log scale,
     paging band, numbered pins), loop (buttons with `aria-pressed`, linked to pins), context,
     gate, postmortem draft (checkboxes, Mark reviewed, Copy Markdown).
-- **Guide** (`Guide.tsx`) — `STEPS` (11) each `{hash, target, title, body}` targeting
-  `[data-guide="…"]`. It navigates, waits for the target, scrolls under the sticky header, and
-  draws a spotlight ring. Keys ← → Esc, focus trap, aria-live. The invitation shows once
-  (localStorage `cr.guide.seen`). `HelpDrawer` opens with `?`: full tour, tour this screen,
-  pipeline, glossary, keys.
-  **If you rename or move a `data-guide` attribute, update `STEPS`.**
-  Current targets: board, strips, cold, controls, tank, meters, strip, gate, trace, postmortem,
-  guide-key (plus loop, console).
+- **Guide** (`Guide.tsx`, steps in `guideSteps.ts`) — `STEPS` (12) each `{hash, target, title, body}`
+  targeting `[data-guide="…"]`. It navigates, waits for the target, scrolls it under the sticky
+  header (and corrects once the scroll settles), and draws a spotlight ring (cut-out veil; the
+  panel stays clickable). The CHECK bubble points at the panel with a caret: `place()` measures
+  the bubble and tries below, above, right, left, then inside; at ≤ 560 px it docks top or bottom.
+  Keys ← → Esc, focus trap, aria-live. The invitation shows once (localStorage `cr.guide.seen`).
+  `HelpDrawer` opens with `?`: full tour, tour this screen, pipeline, glossary, keys.
+  **If you rename or move a `data-guide` attribute, update `STEPS`** (the e2e tour fails if not).
+  Current targets: nav, board, strips, cold, controls, tank, meters, strip, gate, trace,
+  postmortem, guide-key (plus loop, console).
 - **URL params for demos/screenshots:** `?lights=up|down`, `?guide=off`.
+- **Static demo:** `npm run build:static` (`vite build --mode static`) sets `VITE_STATIC=1` and
+  base `/control-room/`; `api.ts` then reads `api/<path>.json` from the frozen replay in
+  `web/.static/`. `.github/workflows/pages.yml` deploys it to
+  https://diorwachira.github.io/control-room/.
 
 ---
 
@@ -284,9 +291,13 @@ CSS scroll-driven animations (incident loop entries slide in via `animation-time
 | `test_deploy_gate_arms_under_the_floor` | gate flips when remaining < floor |
 | `test_replay_of_8_november` | exact replay times (09:52 fire, 10:16 reset, 11:40 resolve), suppression, ack |
 | `test_api.py` | endpoints, lamp states, 83 frames, 404s, gate override |
+| `test_adapters.py` | PrometheusSource on recorded responses (vector, empty, NaN, scalar, error); Resolve idempotency key survives retries, 4xx not retried; pager backoff on 429, fail-fast on 400 |
 
-Web has no automated tests yet (Playwright + Vitest are in roadmap M5). `npm run build` runs
-`tsc` in strict mode.
+Web: Playwright e2e in `web/e2e/` against the static build (`npx playwright test`; first run
+`python -m controlroom.export ../web/.static/api` from `engine/`). It walks the full guide tour
+(every target exists, the bubble never covers its panel, stays on screen, has a caret), plus
+Not now, focus trap, help drawer, strip readout, replay to incident, gate override, 404 and
+375 px. `npm run build` runs `tsc` in strict mode. Vitest is still to do.
 
 ---
 

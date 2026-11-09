@@ -50,8 +50,14 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+// The public demo (GitHub Pages) has no engine: `VITE_STATIC=1` builds read the replay that
+// `python -m controlroom.export` froze into dist/api/*.json at build time.
+export const STATIC = import.meta.env.VITE_STATIC === "1";
+export const apiUrl = (path: string) =>
+  STATIC ? `${import.meta.env.BASE_URL}${path.replace(/^\//, "").split("?")[0]}.json` : path;
+
 export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const r = await fetch(path, { signal, headers: { Accept: "application/json" } });
+  const r = await fetch(apiUrl(path), { signal, headers: { Accept: "application/json" } });
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail ?? msg; } catch { /* not JSON */ }

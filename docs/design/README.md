@@ -14,6 +14,9 @@ with the matching image, and re-capture the images when the look changes on purp
 | `07-status-mobile.png` | Status board | up | 375 |
 | `08-budgets-mobile-dark.png` | Budget wall | down | 375 |
 | `09-guide-invite.png` | First-visit guide invitation | up | 1440 |
+| `10-guide-bubble-light.png` | Guide CHECK 3: bubble below the 91-day strips, caret up | up | 1440 |
+| `11-guide-bubble-dark.png` | Guide CHECK 9: bubble above the deploy gate, caret down | down | 1440 |
+| `12-guide-bubble-mobile.png` | Guide CHECK 6 docked to the bottom edge | up | 375 |
 
 ## What to look for
 - **Lamps are the only colour.** White = nominal or advisory, amber = budget burning, red = breach or
@@ -33,6 +36,9 @@ CH="/c/Program Files/Google/Chrome/Application/chrome.exe"
 shot(){ "$CH" --headless=new --disable-gpu --hide-scrollbars --user-data-dir="C:/Users/$USERNAME/AppData/Local/Temp/cr-shot-$1" --window-size=$2 --virtual-time-budget=$4 --screenshot="$(pwd -W)/$1.png" "$3"; }
 shot 03-budgets-light 1440,2700 "http://localhost:8000/?lights=up&guide=off#/budgets" 30000
 ```
+
+The guide images (09 to 12) come from `node web/scripts/capture.mjs docs/design` (run from the
+repo root) against `npx vite preview --mode static --port 4174` after `npm run build:static`.
 
 `?lights=up|down` forces the theme and `?guide=off` hides the first-visit invitation (both handled
 in `web/index.html`). `--virtual-time-budget` lets the budget replay run to the end before capture.
