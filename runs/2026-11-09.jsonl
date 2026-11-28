@@ -1,0 +1,14 @@
+{"at":"2026-11-09T18:48:58+00:00","service":"resolve","attempt":1,"outcome":"success","latency_s":4.828,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"repolens","attempt":1,"outcome":"success","latency_s":0.241,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"sunrise","attempt":1,"outcome":"success","latency_s":0.84,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"get2themoney","attempt":1,"outcome":"success","latency_s":3.134,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"seedmind","attempt":1,"outcome":"success","latency_s":0.15,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"metamorph","attempt":1,"outcome":"success","latency_s":0.136,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:48:58+00:00","service":"context-profiler","attempt":1,"outcome":"success","latency_s":0.127,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:08+00:00","service":"context-profiler","attempt":2,"outcome":"success","latency_s":0.01,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:08+00:00","service":"metamorph","attempt":2,"outcome":"success","latency_s":0.197,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:08+00:00","service":"seedmind","attempt":2,"outcome":"success","latency_s":0.01,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:09+00:00","service":"repolens","attempt":2,"outcome":"success","latency_s":0.113,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:09+00:00","service":"sunrise","attempt":2,"outcome":"success","latency_s":0.824,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:11+00:00","service":"get2themoney","attempt":2,"outcome":"success","latency_s":0.855,"detail":"HTTP 200"}
+{"at":"2026-11-09T18:49:13+00:00","service":"resolve","attempt":2,"outcome":"success","latency_s":0.38,"detail":"HTTP 200"}
